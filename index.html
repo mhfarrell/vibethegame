@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Vibe The Game - Explore. Prompt. Collect Bugs.</title>
+  <meta name="description" content="Vibe The Game is a free browser-based exploration game where you talk to NPCs using text prompts, collect bugs as currency, complete quests, and uncover the secrets of the Vibeverse.">
+  <meta name="keywords" content="vibe the game, browser game, exploration game, text adventure, NPC prompts, indie game, free game, pixel art, retro game, vibeverse">
+  <meta name="author" content="Vibe The Game">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#66bb6a">
+
+  <!-- Open Graph / Social -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Vibe The Game - Explore. Prompt. Collect Bugs.">
+  <meta property="og:description" content="A free browser-based exploration game. Talk to NPCs, collect bugs, complete quests, and explore the Vibeverse!">
+  <meta property="og:site_name" content="Vibe The Game">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Vibe The Game">
+  <meta name="twitter:description" content="Explore the Vibeverse, prompt NPCs, collect bugs, and vibe. Free browser game.">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="apple-touch-icon" href="favicon.svg">
+
+  <!-- Canonical -->
+  <link rel="canonical" href="">
+
+  <!-- Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "VideoGame",
+    "name": "Vibe The Game",
+    "description": "A free browser-based exploration game where you talk to NPCs using text prompts, collect bugs as currency, and explore the Vibeverse.",
+    "genre": ["Adventure", "Exploration", "Text-based"],
+    "gamePlatform": "Web Browser",
+    "applicationCategory": "Game",
+    "operatingSystem": "Any",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "playMode": "SinglePlayer",
+    "numberOfPlayers": {
+      "@type": "QuantitativeValue",
+      "value": 1
+    }
+  }
+  </script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Game Container -->
+  <div id="game-container">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" style="display: none;">
+      <div id="hud-left">
+        <div class="hud-item" id="bug-count">
+          <span class="bug-icon">&#x1F41B;</span> <span id="bug-count-val">0</span>
+        </div>
+      </div>
+      <div id="hud-center">
+        <div class="hud-item" id="area-name">Spawn Village</div>
+      </div>
+      <div id="hud-right">
+        <div class="hud-item" id="quest-indicator" style="display: none;">0 quests</div>
+      </div>
+    </div>
+
+    <!-- Minimap -->
+    <canvas id="minimap" width="90" height="60"></canvas>
+
+    <!-- Interact Prompt -->
+    <div id="interact-prompt">Press ENTER to talk</div>
+
+    <!-- Dialogue Box -->
+    <div id="dialogue-box">
+      <div id="dialogue-header">
+        <div id="npc-portrait"></div>
+        <div id="npc-name">NPC</div>
+        <div id="dialogue-close">ESC to close</div>
+      </div>
+      <div id="dialogue-messages"></div>
+      <div id="dialogue-input-area">
+        <input type="text" id="dialogue-input" placeholder="Type your message..." autocomplete="off" maxlength="200">
+        <button id="dialogue-send">SEND</button>
+      </div>
+    </div>
+
+    <!-- Inventory Panel -->
+    <div id="inventory-panel">
+      <h2>Inventory</h2>
+      <div id="inventory-grid"></div>
+      <div class="inv-stats">
+        <span>Bugs: 0</span>
+        <span>Total: 0</span>
+        <span>Time: 0m</span>
+      </div>
+      <div class="inv-close">Press I or ESC to close</div>
+    </div>
+
+    <!-- Quests Panel -->
+    <div id="quests-panel">
+      <h2>Quests</h2>
+      <div class="quests-list"></div>
+      <div class="quests-close">Press Q or ESC to close</div>
+    </div>
+
+    <!-- Menu Panel -->
+    <div id="menu-panel">
+      <h2>Menu</h2>
+      <button class="menu-btn" id="menu-resume">Resume Game</button>
+      <button class="menu-btn" id="menu-save">Save Game</button>
+      <button class="menu-btn" id="menu-quests">View Quests</button>
+      <button class="menu-btn danger" id="menu-delete">Delete Save Data</button>
+      <div class="menu-close">Press ESC to close</div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification"></div>
+
+    <!-- Achievement Popup -->
+    <div id="achievement-popup">
+      <div class="ach-label">Achievement Unlocked</div>
+      <div class="ach-name"></div>
+    </div>
+
+    <!-- Transition Overlay -->
+    <div id="transition-overlay"></div>
+
+    <!-- Start Screen -->
+    <div id="start-screen">
+      <div class="title">VIBE THE GAME</div>
+      <div class="subtitle">Explore &middot; Prompt &middot; Collect Bugs</div>
+      <button class="start-btn">START GAME</button>
+      <div class="continue-info"></div>
+      <div class="controls-hint">
+        WASD / Arrows: Move &nbsp; | &nbsp; ENTER: Talk to NPC<br>
+        SPACE: Catch Bug &nbsp; | &nbsp; F: Fish &nbsp; | &nbsp; P: Pet Info<br>
+        I: Inventory &nbsp; | &nbsp; Q: Quests &nbsp; | &nbsp; ESC: Menu
+      </div>
+      <div class="footer-links">
+        <a href="privacy.html">Privacy Policy</a>
+      </div>
+    </div>
+
+    <!-- Mobile Controls -->
+    <div id="mobile-controls">
+      <div class="mobile-dpad">
+        <button class="up">&#9650;</button>
+        <button class="down">&#9660;</button>
+        <button class="left">&#9664;</button>
+        <button class="right">&#9654;</button>
+      </div>
+      <div class="mobile-action">
+        <button>ACT</button>
+      </div>
+    </div>
+
+    <!-- Cookie Consent Banner -->
+    <div id="cookie-banner">
+      <p>This game uses cookies to save your progress. No tracking, no ads, just saving your bugs and quests!
+        <a href="privacy.html">Learn more</a></p>
+      <div class="cookie-btns">
+        <button class="cookie-btn accept" id="cookie-accept">Accept & Save</button>
+        <button class="cookie-btn decline" id="cookie-decline">Play Without Saving</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="js/save.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
