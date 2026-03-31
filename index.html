@@ -65,14 +65,17 @@
     <div id="hud" style="display: none;">
       <div id="hud-left">
         <div class="hud-item" id="bug-count">
-          <span class="bug-icon">&#x1F41B;</span> <span id="bug-count-val">0</span>
+          <span class="bug-icon"><img class="bug-icon-art" src="assets/ui/bug-token.svg" alt=""></span> <span id="bug-count-val">0</span>
         </div>
       </div>
       <div id="hud-center">
         <div class="hud-item" id="area-name">Spawn Village</div>
+        <div class="hud-item hud-objective" id="objective-display">Talk to Professor Semicolon to get started.</div>
       </div>
       <div id="hud-right">
         <div class="hud-item" id="quest-indicator" style="display: none;">0 quests</div>
+        <div class="hud-item" id="combo-display">Chain Ready</div>
+        <div class="hud-item" id="dash-display">Dash Locked</div>
       </div>
     </div>
 
@@ -140,12 +143,15 @@
     <!-- Start Screen -->
     <div id="start-screen">
       <div class="title">VIBE THE GAME</div>
-      <div class="subtitle">Explore &middot; Prompt &middot; Collect Bugs</div>
+      <div class="subtitle">Explore &middot; Chain Bugs &middot; Unlock Neon Secrets</div>
+      <div class="start-art-frame">
+        <img class="start-art" src="assets/ui/start-scene.svg" alt="A vibrant Vibeverse scene with portals, bugs, and the Neon Garden beyond">
+      </div>
       <button class="start-btn">START GAME</button>
       <div class="continue-info"></div>
       <div class="controls-hint">
         WASD / Arrows: Move &nbsp; | &nbsp; ENTER: Talk to NPC<br>
-        SPACE: Catch Bug &nbsp; | &nbsp; F: Fish &nbsp; | &nbsp; P: Pet Info<br>
+        SPACE: Catch Bug &nbsp; | &nbsp; SHIFT: Dash &nbsp; | &nbsp; F: Fish &nbsp; | &nbsp; P: Pet Info<br>
         I: Inventory &nbsp; | &nbsp; Q: Quests &nbsp; | &nbsp; ESC: Menu
       </div>
       <div class="footer-links">

@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="64" viewBox="0 0 256 64" shape-rendering="crispEdges">
+  <defs>
+    <g id="bug-a">
+      <ellipse cx="9" cy="12" rx="6" ry="8" fill="var(--wing-left)" opacity=".75"/>
+      <ellipse cx="23" cy="12" rx="6" ry="8" fill="var(--wing-right)" opacity=".75"/>
+      <ellipse cx="16" cy="17" rx="7" ry="7" fill="var(--body)"/>
+      <rect x="13" y="13" width="6" height="2" fill="var(--stripe)"/>
+      <rect x="12" y="17" width="8" height="2" fill="var(--stripe)"/>
+      <circle cx="16" cy="9" r="4" fill="var(--body-dark)"/>
+      <circle cx="14.5" cy="8.5" r="1" fill="#fff"/>
+      <circle cx="17.5" cy="8.5" r="1" fill="#fff"/>
+    </g>
+    <g id="bug-b">
+      <ellipse cx="8" cy="11" rx="7" ry="7" fill="var(--wing-left)" opacity=".75"/>
+      <ellipse cx="24" cy="11" rx="7" ry="7" fill="var(--wing-right)" opacity=".75"/>
+      <ellipse cx="16" cy="17" rx="7" ry="7" fill="var(--body)"/>
+      <rect x="13" y="14" width="6" height="2" fill="var(--stripe)"/>
+      <rect x="12" y="18" width="8" height="2" fill="var(--stripe)"/>
+      <circle cx="16" cy="9" r="4" fill="var(--body-dark)"/>
+      <circle cx="14.5" cy="8.5" r="1" fill="#fff"/>
+      <circle cx="17.5" cy="8.5" r="1" fill="#fff"/>
+    </g>
+  </defs>
+
+  <g transform="translate(0 0)" style="--body:#ffd54f;--body-dark:#ffb300;--stripe:#8b5a15;--wing-left:#fff8c8;--wing-right:#fff3b0"><use href="#bug-a"/></g>
+  <g transform="translate(32 0)" style="--body:#ffb74d;--body-dark:#ff8f00;--stripe:#8b4c20;--wing-left:#fff0d8;--wing-right:#ffe2bf"><use href="#bug-a"/></g>
+  <g transform="translate(64 0)" style="--body:#b39ddb;--body-dark:#7e57c2;--stripe:#4a2d72;--wing-left:#efe7fb;--wing-right:#ded0f8"><use href="#bug-a"/></g>
+  <g transform="translate(96 0)" style="--body:#90caf9;--body-dark:#42a5f5;--stripe:#1a6090;--wing-left:#f3fbff;--wing-right:#dff3ff"><use href="#bug-a"/></g>
+  <g transform="translate(128 0)" style="--body:#ce93d8;--body-dark:#ab47bc;--stripe:#5c2b70;--wing-left:#f8ecfb;--wing-right:#efe0f4"><use href="#bug-a"/></g>
+  <g transform="translate(160 0)" style="--body:#ff8a65;--body-dark:#f4511e;--stripe:#842811;--wing-left:#fff0e7;--wing-right:#ffe2d4"><use href="#bug-a"/></g>
+  <g transform="translate(192 0)" style="--body:#80deea;--body-dark:#26c6da;--stripe:#16616a;--wing-left:#eaffff;--wing-right:#d7f9ff"><use href="#bug-a"/></g>
+  <g transform="translate(224 0)" style="--body:#ff4d8d;--body-dark:#cf2f6f;--stripe:#5f1536;--wing-left:#ffe2ef;--wing-right:#c3fbff"><use href="#bug-a"/></g>
+
+  <g transform="translate(0 32)" style="--body:#ffd54f;--body-dark:#ffb300;--stripe:#8b5a15;--wing-left:#fff8c8;--wing-right:#fff3b0"><use href="#bug-b"/></g>
+  <g transform="translate(32 32)" style="--body:#ffb74d;--body-dark:#ff8f00;--stripe:#8b4c20;--wing-left:#fff0d8;--wing-right:#ffe2bf"><use href="#bug-b"/></g>
+  <g transform="translate(64 32)" style="--body:#b39ddb;--body-dark:#7e57c2;--stripe:#4a2d72;--wing-left:#efe7fb;--wing-right:#ded0f8"><use href="#bug-b"/></g>
+  <g transform="translate(96 32)" style="--body:#90caf9;--body-dark:#42a5f5;--stripe:#1a6090;--wing-left:#f3fbff;--wing-right:#dff3ff"><use href="#bug-b"/></g>
+  <g transform="translate(128 32)" style="--body:#ce93d8;--body-dark:#ab47bc;--stripe:#5c2b70;--wing-left:#f8ecfb;--wing-right:#efe0f4"><use href="#bug-b"/></g>
+  <g transform="translate(160 32)" style="--body:#ff8a65;--body-dark:#f4511e;--stripe:#842811;--wing-left:#fff0e7;--wing-right:#ffe2d4"><use href="#bug-b"/></g>
+  <g transform="translate(192 32)" style="--body:#80deea;--body-dark:#26c6da;--stripe:#16616a;--wing-left:#eaffff;--wing-right:#d7f9ff"><use href="#bug-b"/></g>
+  <g transform="translate(224 32)" style="--body:#ff4d8d;--body-dark:#cf2f6f;--stripe:#5f1536;--wing-left:#ffe2ef;--wing-right:#c3fbff"><use href="#bug-b"/></g>
+</svg>

@@ -84,7 +84,7 @@ var GameData = (function () {
         '#...K....=..........=...K..##\n' +
         '#..T.....=..........=.......#\n' +
         '#........=====..=====......##\n' +
-        '#............=..=..........##\n' +
+        '#............=PPP=.........##\n' +
         '#...T........=..=.....T....#\n' +
         '#............=..=.......*.##\n' +
         '#..**........=..=.......*.##\n' +
@@ -106,11 +106,14 @@ var GameData = (function () {
         { x: 3, y: 2, dest: 'repository', destX: 160, destY: 512 },
         { x: 4, y: 2, dest: 'repository', destX: 160, destY: 512 },
         { x: 5, y: 2, dest: 'repository', destX: 160, destY: 512 },
+        { x: 14, y: 10, dest: 'neon_garden', destX: 96, destY: 544 },
+        { x: 15, y: 10, dest: 'neon_garden', destX: 96, destY: 544 },
+        { x: 16, y: 10, dest: 'neon_garden', destX: 96, destY: 544 },
         { x: 10, y: 18, dest: 'twilight_grove', destX: 320, destY: 480 },
         { x: 11, y: 18, dest: 'twilight_grove', destX: 320, destY: 480 },
         { x: 12, y: 18, dest: 'twilight_grove', destX: 320, destY: 480 }
       ],
-      npcs: ['prof_semicolon', 'vendor_vivian']
+      npcs: ['prof_semicolon', 'vendor_vivian', 'dj_beatbyte']
     },
 
     // ---- SYNTAX MEADOWS ----
@@ -303,11 +306,11 @@ var GameData = (function () {
         '#....***...........L...***...T#\n' +
         '#..T..................L......#\n' +
         '#.........====...............#\n' +
-        '#....Y...==WWWW===.....Y.....#\n' +
-        '#........=WWWWWW=...........#\n' +
-        '#...Y....=WWWWWW=....Y......#\n' +
-        '#........=WWWWWW=...........#\n' +
-        '#....Y...==WWWW===.....Y.....#\n' +
+        '#....Y...==RWWR===.....Y.....#\n' +
+        '#........=RWWWWR=...........#\n' +
+        '#...Y....=RWWWWR=....Y......#\n' +
+        '#........=RWWWWR=...........#\n' +
+        '#....Y...==RWWR===.....Y.....#\n' +
         '#.........====...............#\n' +
         '#T..................L...T...#\n' +
         '#....***..........L...***...#\n' +
@@ -323,6 +326,54 @@ var GameData = (function () {
         { x: 20, y: 18, dest: 'spawn_village', destX: 320, destY: 480 }
       ],
       npcs: ['luna_moth', 'pond_keeper']
+    },
+
+    // ---- NEON GARDEN ----
+    neon_garden: {
+      name: 'Neon Garden',
+      palette: {
+        ground: '#10242d', groundAlt: '#17333e', wall: '#2e2b5f', wallLine: '#241f4b',
+        path: '#ff7a59', pathLine: '#ffad77', water: '#0b3f5c', waterLight: '#29d7ff',
+        tree: '#0a5c58', treeTop: '#47f0c3', sky: '#090b17'
+      },
+      dark: false,
+      bugDensity: 1.3,
+      bugPool: [
+        { id: 'glitchling', weight: 55 },
+        { id: 'dreamspinner', weight: 25 },
+        { id: 'cloud_skimmer', weight: 20 }
+      ],
+      map: parseMap(
+        '################################\n' +
+        '#...Y....*....C....*.....Y....#\n' +
+        '#..*.....====....====.....*...#\n' +
+        '#..*..T..=..=....=..=..T..*...#\n' +
+        '#.....T..=..=....=..=..T......#\n' +
+        '#..Y.....=..=....=..=.....Y...#\n' +
+        '#........=..=....=..=.........#\n' +
+        '#....OOOOO..*..Y..*..OOOOO....#\n' +
+        '#...OOOOOOO........OOOOOOO....#\n' +
+        '#...OOO*OOO....C...OOO*OOO....#\n' +
+        '#...OOOOOOO........OOOOOOO....#\n' +
+        '#....OOOOO..*..Y..*..OOOOO....#\n' +
+        '#........=..=....=..=.........#\n' +
+        '#..Y.....=..=....=..=.....Y...#\n' +
+        '#.....T..=..=....=..=..T......#\n' +
+        '#..*..T..=..=....=..=..T..*...#\n' +
+        '#..*.....====....====.....*...#\n' +
+        '#PPP..*....C....*.....Y.......#\n' +
+        '#PPP..........................#\n' +
+        '################################'
+      ),
+      portals: [
+        { x: 0, y: 17, dest: 'spawn_village', destX: 480, destY: 320 },
+        { x: 1, y: 17, dest: 'spawn_village', destX: 480, destY: 320 },
+        { x: 2, y: 17, dest: 'spawn_village', destX: 480, destY: 320 },
+        { x: 0, y: 18, dest: 'spawn_village', destX: 480, destY: 320 },
+        { x: 1, y: 18, dest: 'spawn_village', destX: 480, destY: 320 },
+        { x: 2, y: 18, dest: 'spawn_village', destX: 480, destY: 320 }
+      ],
+      npcs: ['remix_ren']
     }
   };
 
@@ -416,6 +467,34 @@ var GameData = (function () {
       ],
       defaultText: "I'm all about the merchandise! Say 'shop' to browse, or name an item you want to buy.",
       questResponses: {}
+    },
+
+    dj_beatbyte: {
+      name: 'DJ Beatbyte',
+      x: 18, y: 11,
+      color: '#ff4d8d', accent: '#00d8ff',
+      greeting: "There you are. I'm DJ Beatbyte, caretaker of the village pulse. This portal only wakes up for collectors who can catch bugs in rhythm.",
+      topics: [
+        { kw: ['help','combo','chain','rhythm','streak','vibe'],
+          text: "Catch bugs back-to-back before your chain cools off and the vibe meter will climb. Longer chains pay out more bugs, and the really hot runs light up hidden routes." },
+        { kw: ['quest','task','challenge','mission','work'],
+          text: "I need proof you've got timing. Land a 4-bug chain without letting the vibe drop, then come back to me. If you can hold the beat, I'll sync a portal to somewhere special.",
+          quest: 'hot_streak' },
+        { kw: ['portal','garden','neon','unlock'],
+          text: "The Neon Garden is a broken remix of the Vibeverse, all coral skies and glitch blooms. I can hear it trying to connect, but it needs your rhythm to punch through." },
+        { kw: ['who','name','you','dj','beatbyte'],
+          text: "Beatbyte. I sample stray packets, loop old loading tunes, and keep the village from going sonically flat." },
+        { kw: ['hello','hi','hey'],
+          text: "Perfect timing. Want to talk combos or are you ready to make the portal sing?" },
+        { kw: ['bye','goodbye','later'],
+          text: "Keep the chain alive out there. Dead air is the enemy." },
+        { kw: ['thank','thanks'],
+          text: "Anytime. Bring back something with a pulse." }
+      ],
+      defaultText: "Talk to me about combos, the Neon Garden, or the challenge I'm holding open for you.",
+      questResponses: {
+        hot_streak_complete: "That's the rhythm I was waiting for. The portal is synced and the Neon Garden is finally online. Go make some noise over there."
+      }
     },
 
     bug_hunter_beatrix: {
@@ -582,7 +661,8 @@ var GameData = (function () {
         { kw: ['bug','bugs','moon','night','glow','rare'],
           text: "The Moonfire Bug carries the last light of sunset. The Duskwing flutters near the pond. The Dreamspinner weaves between flowers. Each holds a piece of twilight." },
         { kw: ['pet','companion','keep','adopt'],
-          text: "Ah, you wish to befriend a bug? Most can be caught and tamed! Some bugs will follow you, bringing good fortune. Try befriending a Duskwing - they're loyal companions." },
+          text: "Ah, you wish to befriend a bug? Earn the grove's trust first, then tell me which friend you want. Say 'adopt duskwing', 'adopt moonfire', or 'adopt dreamspinner' when you are ready.",
+          quest: 'pet_collector' },
         { kw: ['who','name','you','moth'],
           text: "I am Luna, born from the first moonlight to touch this grove. I guide lost souls and befriend wandering bugs. We are the heart of twilight." },
         { kw: ['pond','water','fishing'],
@@ -599,7 +679,8 @@ var GameData = (function () {
       ],
       defaultText: "*glows softly* Ask me about the night bugs, the grove, or the secrets that bloom after dark.",
       questResponses: {
-        moonfire_gathering_complete: "You've gathered the moonfire! The glow lingers in your hands. Take these 25 bugs - may they shine as bright as your dedication to the night."
+        moonfire_gathering_complete: "You've gathered the moonfire! The glow lingers in your hands. Take these 25 bugs, and know this: the grove now trusts you to adopt one of its tiny guardians.",
+        pet_collector_complete: "A bug companion choosing you is no small thing. Care for them well, and they'll keep the night bright."
       }
     },
 
@@ -618,11 +699,14 @@ var GameData = (function () {
         { kw: ['shop','buy','rod','pole','tackle','bait'],
           text: "I've got supplies! Here's my catalog:\n\n  Fishing Rod (30 bugs) - Required to fish\n  Premium Bait (10 bugs) - Attracts rare fish\n  Fish Jar (15 bugs) - Store your catches\n\nJust say what you want!" },
         { kw: ['rod','fishing rod'],
-          text: "A fine rod it is! 30 bugs and you'll be catching whoppers in no time. Well, maybe not whoppers, but decent fish!" },
+          text: "A fine rod it is! 30 bugs and you'll be catching whoppers in no time. Well, maybe not whoppers, but decent fish!",
+          shopItem: 'fishing_rod', price: 30 },
         { kw: ['bait','premium bait'],
-          text: "Premium Bait brings out the big ones! Worth the investment if you're after the rare varieties." },
+          text: "Premium Bait brings out the big ones! Worth the investment if you're after the rare varieties.",
+          shopItem: 'premium_bait', price: 10 },
         { kw: ['jar','fish jar'],
-          text: "The Fish Jar keeps your catches fresh. Essential for collectors! 15 bugs and it's yours." },
+          text: "The Fish Jar keeps your catches fresh. Essential for collectors! 15 bugs and it's yours.",
+          shopItem: 'fish_jar', price: 15 },
         { kw: ['fish','catch','caught','specimen'],
           text: "We've got all sorts in that pond! Glowing minnows, silver dartfish, golden glimmers... and if you're lucky, the legendary Rainbowfin!" },
         { kw: ['who','name','you','finley'],
@@ -643,6 +727,36 @@ var GameData = (function () {
       questResponses: {
         fishing_frenzy_complete: "Five fish! You've got the touch! Here's 35 bugs - now THAT'S a fishing story! Keep at it and you might just catch the Rainbowfin!"
       }
+    },
+
+    remix_ren: {
+      name: 'Remix Ren',
+      x: 21, y: 9,
+      color: '#29d7ff', accent: '#ff7a59',
+      greeting: "Welcome to the Neon Garden. I'm Remix Ren, and this place only stays stable if somebody keeps collecting the glitchlings before they chew through the beat.",
+      topics: [
+        { kw: ['help','guide','how','glitch','dash'],
+          text: "Glitchlings move fast, but they pay big. Catch enough of them and I'll hand over my Pulse Pack. Once it's yours, tap SHIFT to dash through the garden and keep your chain alive." },
+        { kw: ['quest','task','mission','work'],
+          text: "Do me a favor: catch 3 Glitchlings while you're in here. Bring that jittery energy back to me and I'll trade you the Pulse Pack I've been tuning.",
+          quest: 'glitch_glow' },
+        { kw: ['bug','bugs','glitchling','garden'],
+          text: "The Neon Garden breeds bugs with attitude. Glitchlings blink in and out, Dreamspinners leave pastel trails, and even the clouds here buzz when the combo gets loud." },
+        { kw: ['pulse','pack','dash','shift'],
+          text: "The Pulse Pack stores momentum. Once I trust you with it, tap SHIFT and you'll lunge in the direction you're moving. Great for keeping a chain hot." },
+        { kw: ['who','name','you','ren','remix'],
+          text: "Ren. I remix unstable zones into something playable. Somebody has to make the bugs look good while reality falls apart." },
+        { kw: ['hello','hi','hey'],
+          text: "You made it through Beatbyte's portal. Nice. Ready to hunt something louder than a meadow skipper?" },
+        { kw: ['bye','goodbye','later'],
+          text: "Don't let the place cool off. It hates being ignored." },
+        { kw: ['thank','thanks'],
+          text: "Bring me glitchlings and we'll call it even." }
+      ],
+      defaultText: "Ask me about glitchlings, the Pulse Pack, or what makes the Neon Garden tick.",
+      questResponses: {
+        glitch_glow_complete: "Three glitchlings, cleanly caught. That's enough signal for me. Take the Pulse Pack and try not to outrun the music."
+      }
     }
   };
 
@@ -657,7 +771,21 @@ var GameData = (function () {
     fishing_rod:   { name: 'Fishing Rod',  desc: 'Required to fish in ponds',         price: 30,  icon: 'rod' },
     premium_bait:  { name: 'Premium Bait', desc: 'Attracts rare fish',                price: 10,  icon: 'bait' },
     fish_jar:      { name: 'Fish Jar',     desc: 'Store your fish catches',           price: 15,  icon: 'jar' },
-    moon_lantern:  { name: 'Moon Lantern',desc: 'Reveals hidden night bugs',          price: 60,  icon: 'moon' }
+    moon_lantern:  { name: 'Moon Lantern', desc: 'Reveals hidden night bugs',         price: 60,  icon: 'moon' },
+    pulse_pack:    { name: 'Pulse Pack',   desc: 'Tap SHIFT to dash and keep combos rolling', price: 0, icon: 'pulse' }
+  };
+
+  // ====== BUG TYPES ======
+
+  var bugTypes = {
+    meadow_skipper: { name: 'Meadow Skipper', rarity: 'common', value: 1, color: '#ffd54f', glow: '#fff3b0', wing: '#fff9dc', speed: 12, sprite: 0 },
+    byte_beetle:    { name: 'Byte Beetle',    rarity: 'uncommon', value: 2, color: '#ffb74d', glow: '#ffe0b2', wing: '#fff3e0', speed: 16, sprite: 1 },
+    null_mite:      { name: 'Null Mite',      rarity: 'rare', value: 3, color: '#b39ddb', glow: '#ede7f6', wing: '#d1c4e9', speed: 14, sprite: 2 },
+    cloud_skimmer:  { name: 'Cloud Skimmer',  rarity: 'rare', value: 3, color: '#90caf9', glow: '#e3f2fd', wing: '#ffffff', speed: 18, sprite: 3 },
+    moonfire:       { name: 'Moonfire Bug',   rarity: 'rare', value: 3, color: '#ce93d8', glow: '#f3e5f5', wing: '#ede7f6', speed: 15, sprite: 4 },
+    duskwing:       { name: 'Duskwing',       rarity: 'rare', value: 2, color: '#ff8a65', glow: '#ffe0b2', wing: '#fff3e0', speed: 20, sprite: 5 },
+    dreamspinner:   { name: 'Dreamspinner',   rarity: 'epic', value: 4, color: '#80deea', glow: '#e0f7fa', wing: '#b2ebf2', speed: 13, sprite: 6 },
+    glitchling:     { name: 'Glitchling',     rarity: 'epic', value: 5, color: '#ff4d8d', glow: '#9bf6ff', wing: '#ffe3ef', speed: 24, sprite: 7 }
   };
 
   // ====== PET BUGS ======
@@ -706,6 +834,15 @@ var GameData = (function () {
       type: 'collect_bugs',
       target: 5,
       reward: 10
+    },
+    hot_streak: {
+      name: 'Hot Streak',
+      desc: 'Hit a 4-bug combo chain',
+      giver: 'dj_beatbyte',
+      type: 'combo',
+      target: 4,
+      reward: 20,
+      unlockArea: 'neon_garden'
     },
     bug_census: {
       name: 'Bug Census',
@@ -763,6 +900,16 @@ var GameData = (function () {
       type: 'adopt_pet',
       target: 1,
       reward: 10
+    },
+    glitch_glow: {
+      name: 'Glitch Glow',
+      desc: 'Catch 3 Glitchlings in the Neon Garden',
+      giver: 'remix_ren',
+      type: 'collect_specific_bug',
+      target: 3,
+      bugType: 'glitchling',
+      reward: 45,
+      grantItem: 'pulse_pack'
     }
   };
 
@@ -776,6 +923,8 @@ var GameData = (function () {
     { id: 'bug_hoarder',        name: 'Bug Hoarder',         desc: 'Collect 50 bugs total' },
     { id: 'legend',             name: 'Vibeverse Legend',     desc: 'Complete the Great Debug' },
     { id: 'night_owl',          name: 'Night Owl',           desc: 'Visit the Twilight Grove' },
+    { id: 'combo_ace',          name: 'Combo Ace',           desc: 'Reach a 5-bug chain' },
+    { id: 'neon_runner',        name: 'Neon Runner',         desc: 'Unlock the Neon Garden' },
     { id: 'master_fisher',      name: 'Master Fisher',       desc: 'Catch 10 fish' },
     { id: 'pet_lover',          name: 'Pet Lover',           desc: 'Adopt a bug companion' },
     { id: 'rainbow_champion',   name: 'Rainbow Champion',    desc: 'Catch the legendary Rainbowfin' },
@@ -788,6 +937,7 @@ var GameData = (function () {
     areas: areas,
     npcDefs: npcDefs,
     items: items,
+    bugTypes: bugTypes,
     petBugs: petBugs,
     fishTypes: fishTypes,
     quests: quests,
