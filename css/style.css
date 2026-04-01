@@ -127,6 +127,12 @@ html, body {
   display: none;
 }
 
+#golden-bugs {
+  color: #ffd700;
+  font-size: 8px;
+  display: none;
+}
+
 #combo-display {
   color: var(--hot);
   transition: transform 0.15s ease, box-shadow 0.15s ease;

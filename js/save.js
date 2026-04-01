@@ -82,6 +82,7 @@ const SaveSystem = {
       player: { x: 448, y: 480, area: 'spawn_village', dir: 0 },
       bugs: 0,
       totalBugsCollected: 0,
+      goldenBugs: 0,
       inventory: [],
       activeQuests: {},
       completedQuests: [],

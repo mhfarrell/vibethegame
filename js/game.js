@@ -70,6 +70,8 @@ var Game = (function () {
   var vibeBeatCount = 0;
   var screenShake = { x: 0, y: 0, intensity: 0, timer: 0 };
   var bestiaryOpen = false;
+  var catchFlash = { active: false, timer: 0 };
+  var weather = { type: 'none', particles: [], active: false };
 
   // Noise seed for terrain variation
   var noiseSeed = [];
@@ -351,6 +353,7 @@ var Game = (function () {
     dom.comboDisplay = document.getElementById('combo-display');
     dom.dashDisplay = document.getElementById('dash-display');
     dom.questIndicator = document.getElementById('quest-indicator');
+    dom.goldenBugs = document.getElementById('golden-bugs');
     dom.interactPrompt = document.getElementById('interact-prompt');
     dom.dialogueBox = document.getElementById('dialogue-box');
     dom.npcName = document.getElementById('npc-name');
@@ -599,12 +602,36 @@ var Game = (function () {
 
     state.bugs += bugsEarned;
     state.totalBugsCollected += bugsEarned;
+
+    // Golden bug chance (10% on catch, 25% in Vibe Mode)
+    var goldenChance = vibeMode.active ? 0.25 : 0.1;
+    if (Math.random() < goldenChance) {
+      state.goldenBugs = (state.goldenBugs || 0) + 1;
+      particles.push({
+        x: bug.x, y: bug.y - 20, vx: 0, vy: -60,
+        life: 1.5, maxLife: 1.5,
+        text: '+1 GOLDEN BUG', color: '#ffd700', size: 11
+      });
+      showNotification('Golden Bug found! (' + state.goldenBugs + '/100)');
+      playSound('achieve');
+    }
+
     state.bugLog[bug.bugType] = (state.bugLog[bug.bugType] || 0) + 1;
     if (state.discoveredBugTypes.indexOf(bug.bugType) === -1) {
       state.discoveredBugTypes.push(bug.bugType);
     }
     state.bestCombo = Math.max(state.bestCombo || 0, comboState.count);
     comboState.lastGain = bugsEarned;
+
+    // THE GREAT DEBUG - Collect 100 golden bugs to complete
+    if (state.goldenBugs >= 100 && !state.greatDebugTriggered) {
+      state.greatDebugTriggered = true;
+      showNotification('THE GREAT DEBUG COMPILES...');
+      playSound('achieve');
+      setTimeout(function() {
+        triggerGreatDebugMilestone();
+      }, 2000);
+    }
 
     // Vibe Mode activation at 6+ chain
     if (comboState.count >= 6 && !vibeMode.active) {
@@ -705,6 +732,8 @@ var Game = (function () {
       bugs.splice(bestIdx, 1);
       var bugsEarned = registerBugCatch(b, bugDef);
       playSound('collect');
+      catchFlash.active = true;
+      catchFlash.timer = 0.4;
 
       // Juicy burst particles - more and varied
       var burstCount = vibeMode.active ? 16 : (comboState.count > 2 ? 12 : 8);
@@ -800,6 +829,12 @@ var Game = (function () {
         if (screenShake.timer <= 0) { screenShake.x = 0; screenShake.y = 0; }
       }
 
+      // Catch flash update
+      if (catchFlash.active && catchFlash.timer > 0) {
+        catchFlash.timer = Math.max(0, catchFlash.timer - dt);
+        if (catchFlash.timer <= 0) catchFlash.active = false;
+      }
+
       // Vibe mode update
       if (vibeMode.active) {
         vibeMode.intensity = Math.min(1, vibeMode.intensity + dt * 2);
@@ -825,9 +860,9 @@ var Game = (function () {
       }
 
       timeOfDay = (timeOfDay + dt / DAY_DURATION) % 1;
-      var wasNight = isNightTime(state.timeOfDay);
+      var wasNight = isNightTime();
       state.timeOfDay = timeOfDay;
-      if (wasNight !== isNightTime(timeOfDay)) {
+      if (wasNight !== isNightTime()) {
         playSound('day_night');
       }
 
@@ -852,6 +887,7 @@ var Game = (function () {
       }
 
       updateParticles(dt);
+      updateWeather(dt);
 
       if (notifTimer > 0) {
         notifTimer -= dt;
@@ -1696,6 +1732,20 @@ var Game = (function () {
     drawDayNightOverlay();
 
     ctx.restore();
+
+    // Weather effects (not affected by screen shake)
+    drawWeather();
+
+    // Catch flash effect
+    if (catchFlash.active && catchFlash.timer > 0) {
+      var flashAlpha = Math.min(0.3, catchFlash.timer * 0.8);
+      var gradient = ctx.createRadialGradient(canvasW/2, canvasH/2, 0, canvasW/2, canvasH/2, canvasW * 0.7);
+      gradient.addColorStop(0, 'rgba(102, 187, 106, ' + flashAlpha + ')');
+      gradient.addColorStop(0.5, 'rgba(41, 215, 255, ' + (flashAlpha * 0.5) + ')');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, canvasW, canvasH);
+    }
 
     // Vibe mode overlay (not shaken)
     drawVibeOverlay();
@@ -2612,6 +2662,80 @@ var Game = (function () {
     }
   }
 
+  // ====== WEATHER SYSTEM ======
+  function updateWeather(dt) {
+    // Only spawn weather in outdoor areas
+    var noWeatherAreas = ['null_caves', 'repository', 'cloud_nine'];
+    if (noWeatherAreas.indexOf(areaId) !== -1) {
+      weather.active = false;
+      weather.particles = [];
+      return;
+    }
+    
+    if (!weather.active) {
+      var seed = Math.floor(gameTime / 30);
+      if (seed % 3 === 0) {
+        weather.type = 'rain';
+        weather.active = true;
+        weather.duration = 15 + Math.random() * 10;
+        weather.particles = [];
+      } else if (seed % 7 === 0) {
+        weather.type = 'snow';
+        weather.active = true;
+        weather.duration = 12 + Math.random() * 8;
+        weather.particles = [];
+      }
+    }
+    
+    if (weather.active) {
+      weather.duration -= dt;
+      if (weather.duration <= 0) {
+        weather.active = false;
+        weather.particles = [];
+      } else {
+        while (weather.particles.length < 50) {
+          weather.particles.push({
+            x: Math.random() * canvasW,
+            y: -10,
+            speed: 2 + Math.random() * 3,
+            drift: (Math.random() - 0.5) * 0.5
+          });
+        }
+      }
+    }
+    
+    for (var i = 0; i < weather.particles.length; i++) {
+      var p = weather.particles[i];
+      p.y += p.speed;
+      p.x += p.drift;
+    }
+    weather.particles = weather.particles.filter(function(p) { return p.y < canvasH + 10; });
+  }
+
+  function drawWeather() {
+    if (!weather.active) return;
+    
+    if (weather.type === 'rain') {
+      ctx.strokeStyle = 'rgba(150, 200, 255, 0.3)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (var i = 0; i < weather.particles.length; i++) {
+        var p = weather.particles[i];
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(p.x + p.drift * 2, p.y + 15);
+      }
+      ctx.stroke();
+    } else if (weather.type === 'snow') {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      for (var j = 0; j < weather.particles.length; j++) {
+        var s = weather.particles[j];
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
   // ====== BESTIARY ======
   function toggleBestiary() {
     bestiaryOpen = !bestiaryOpen;
@@ -2671,6 +2795,11 @@ var Game = (function () {
     } else {
       dom.questIndicator.style.display = 'none';
     }
+    if (dom.goldenBugs) {
+      var gb = state.goldenBugs || 0;
+      dom.goldenBugs.textContent = gb + ' Golden';
+      dom.goldenBugs.style.display = gb > 0 ? 'block' : 'none';
+    }
     updateMinimapPlayer();
   }
 
@@ -2678,6 +2807,72 @@ var Game = (function () {
     dom.notification.textContent = text;
     dom.notification.style.display = 'block';
     notifTimer = 3;
+  }
+
+  function triggerGreatDebugMilestone() {
+    transitioning = true;
+    var overlay = dom.transitionOverlay;
+    overlay.style.transition = 'opacity 2s';
+    overlay.style.opacity = '1';
+    
+    setTimeout(function() {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvasW, canvasH);
+      
+      var glTitle = document.createElement('div');
+      glTitle.id = 'great-debug-title';
+      glTitle.innerHTML = '<span>THE</span><span>GREAT</span><span>DEBUG</span>';
+      glTitle.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-pixel);font-size:32px;color:#66bb6a;text-align:center;animation:glowPulse 2s infinite;';
+      document.getElementById('game-container').appendChild(glTitle);
+      
+      var style = document.createElement('style');
+      style.textContent = '@keyframes glowPulse{0%,100%{text-shadow:0 0 20px #66bb6a,0 0 40px #66bb6a}50%{text-shadow:0 0 40px #66bb6a,0 0 80px #66bb6a,0 0 120px #29d7ff}}';
+      document.head.appendChild(style);
+      
+      showNotification('You are now a Legend of the Vibeverse!');
+      
+      setTimeout(function() {
+        state.achievements.push('legend');
+        unlockAchievement('legend');
+        transitioning = false;
+        overlay.style.transition = 'opacity 1s';
+        overlay.style.opacity = '0';
+        if (glTitle.parentNode) glTitle.parentNode.removeChild(glTitle);
+      }, 4000);
+    }, 2000);
+  }
+
+  function triggerGreatDebugEnding() {
+    transitioning = true;
+    var overlay = dom.transitionOverlay;
+    overlay.style.transition = 'opacity 2s';
+    overlay.style.opacity = '1';
+    
+    setTimeout(function() {
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvasW, canvasH);
+      
+      var glTitle = document.createElement('div');
+      glTitle.id = 'great-debug-title';
+      glTitle.innerHTML = '<span>THE</span><span>GREAT</span><span>DEBUG</span>';
+      glTitle.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-pixel);font-size:32px;color:#66bb6a;text-align:center;animation:glowPulse 2s infinite;';
+      document.getElementById('game-container').appendChild(glTitle);
+      
+      var style = document.createElement('style');
+      style.textContent = '@keyframes glowPulse{0%,100%{text-shadow:0 0 20px #66bb6a,0 0 40px #66bb6a}50%{text-shadow:0 0 40px #66bb6a,0 0 80px #66bb6a,0 0 120px #29d7ff}}';
+      document.head.appendChild(style);
+      
+      showNotification('You have optimized the Vibeverse. You are now a Legend.');
+      
+      setTimeout(function() {
+        state.achievements.push('legend');
+        unlockAchievement('legend');
+        transitioning = false;
+        overlay.style.transition = 'opacity 1s';
+        overlay.style.opacity = '0';
+        if (glTitle.parentNode) glTitle.parentNode.removeChild(glTitle);
+      }, 4000);
+    }, 2000);
   }
 
   function unlockAchievement(id) {
