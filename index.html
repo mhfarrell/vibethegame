@@ -77,6 +77,8 @@
         <div class="hud-item" id="golden-bugs" style="display: none;">0 Golden</div>
         <div class="hud-item" id="combo-display">Chain Ready</div>
         <div class="hud-item" id="dash-display">Dash Locked</div>
+        <div class="hud-item" id="lure-display">Lure Locked</div>
+        <div class="hud-item" id="storm-display">Pulse Calm</div>
       </div>
     </div>
 
@@ -127,12 +129,20 @@
       <div class="bestiary-close">Press B or ESC to close</div>
     </div>
 
+    <!-- Scanner Panel -->
+    <div id="scanner-panel">
+      <h2>Field Scanner</h2>
+      <div class="scanner-grid"></div>
+      <div class="scanner-close">Press M or ESC to close</div>
+    </div>
+
     <!-- Menu Panel -->
     <div id="menu-panel">
       <h2>Menu</h2>
       <button class="menu-btn" id="menu-resume">Resume Game</button>
       <button class="menu-btn" id="menu-save">Save Game</button>
       <button class="menu-btn" id="menu-quests">View Quests</button>
+      <button class="menu-btn" id="menu-scanner">Field Scanner</button>
       <button class="menu-btn danger" id="menu-delete">Delete Save Data</button>
       <div class="menu-close">Press ESC to close</div>
     </div>
@@ -160,8 +170,8 @@
       <div class="continue-info"></div>
       <div class="controls-hint">
         WASD / Arrows: Move &nbsp; | &nbsp; ENTER: Talk to NPC<br>
-        SPACE: Catch Bug &nbsp; | &nbsp; SHIFT: Dash &nbsp; | &nbsp; F: Fish &nbsp; | &nbsp; P: Pet Info<br>
-        I: Inventory &nbsp; | &nbsp; Q: Quests &nbsp; | &nbsp; B: Bestiary &nbsp; | &nbsp; ESC: Menu
+        SPACE: Catch Bug &nbsp; | &nbsp; SHIFT: Dash &nbsp; | &nbsp; L: Signal Lure &nbsp; | &nbsp; F: Fish<br>
+        I: Inventory &nbsp; | &nbsp; Q: Quests &nbsp; | &nbsp; B: Bestiary &nbsp; | &nbsp; M: Scanner &nbsp; | &nbsp; ESC: Menu
       </div>
       <div class="footer-links">
         <a href="privacy.html">Privacy Policy</a>
@@ -177,7 +187,9 @@
         <button class="right">&#9654;</button>
       </div>
       <div class="mobile-action">
-        <button>ACT</button>
+        <button class="act">ACT</button>
+        <button class="lure">LURE</button>
+        <button class="scan">SCAN</button>
       </div>
     </div>
 

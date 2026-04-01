@@ -68,6 +68,12 @@ html, body {
   gap: 12px;
 }
 
+#hud-right {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 360px;
+}
+
 #hud-center {
   flex-direction: column;
   gap: 6px;
@@ -152,6 +158,37 @@ html, body {
 }
 
 #dash-display[data-state="locked"] {
+  color: var(--text-dim);
+}
+
+#lure-display[data-state="ready"] {
+  color: var(--gold);
+}
+
+#lure-display[data-state="active"] {
+  color: var(--accent2);
+  box-shadow: 0 0 18px rgba(41, 215, 255, 0.22);
+}
+
+#lure-display[data-state="cooldown"] {
+  color: #b0bec5;
+}
+
+#lure-display[data-state="locked"] {
+  color: var(--text-dim);
+}
+
+#storm-display[data-state="pull"] {
+  color: var(--accent2);
+  border-color: rgba(41, 215, 255, 0.4);
+}
+
+#storm-display[data-state="scatter"] {
+  color: var(--gold);
+  border-color: rgba(255, 213, 79, 0.45);
+}
+
+#storm-display[data-state="calm"] {
   color: var(--text-dim);
 }
 
@@ -773,6 +810,10 @@ html, body {
   right: 30px;
   bottom: 30px;
   pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-end;
 }
 
 .mobile-action button {
@@ -786,12 +827,21 @@ html, body {
   cursor: pointer;
 }
 
+.mobile-action .lure,
+.mobile-action .scan {
+  width: 68px;
+  height: 36px;
+  border-radius: 14px;
+  font-size: 8px;
+}
+
 /* ---- RESPONSIVE ---- */
 @media (max-width: 768px) {
   #hud { padding: 8px 12px; }
   .hud-item { padding: 4px 10px; font-size: 8px; }
   #bug-count { font-size: 10px; }
   #objective-display { max-width: 220px; }
+  #hud-right { max-width: 240px; gap: 8px; }
   .start-art-frame { width: min(420px, calc(100vw - 32px)); }
   #mobile-controls { display: block; }
 }
@@ -958,6 +1008,148 @@ html, body {
 .bestiary-close {
   text-align: center;
   margin-top: 12px;
+  font-size: 8px;
+  color: var(--text-dim);
+}
+
+/* ---- SCANNER ---- */
+#scanner-panel {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(620px, calc(100vw - 40px));
+  max-height: 80vh;
+  overflow-y: auto;
+  background:
+    linear-gradient(180deg, rgba(41, 215, 255, 0.05), rgba(255, 122, 89, 0.03)),
+    var(--panel);
+  border: 2px solid var(--accent2);
+  border-radius: 16px;
+  padding: 24px;
+  z-index: 26;
+  display: none;
+  animation: fadeIn 0.2s;
+}
+
+#scanner-panel h2 {
+  font-family: var(--font-pixel);
+  font-size: 14px;
+  color: var(--accent2);
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.scanner-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.scanner-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(79, 195, 247, 0.18);
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.scanner-kicker {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent2);
+  margin-bottom: 8px;
+}
+
+.scanner-title {
+  font-family: var(--font-pixel);
+  font-size: 11px;
+  color: var(--gold);
+  margin-bottom: 8px;
+}
+
+.scanner-body,
+.scanner-stack,
+.scanner-row-meta,
+.scanner-empty {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+
+.scanner-pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.scanner-pill {
+  border: 1px solid rgba(79, 195, 247, 0.18);
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  color: var(--text);
+}
+
+.scanner-list {
+  display: grid;
+  gap: 8px;
+}
+
+.scanner-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.scanner-row:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.scanner-row-name {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: var(--text);
+}
+
+.scanner-row-meta {
+  text-align: right;
+}
+
+.scanner-state {
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  text-transform: uppercase;
+}
+
+.scanner-state-online {
+  color: var(--accent);
+}
+
+.scanner-state-locked {
+  color: var(--danger);
+}
+
+.scanner-state-requirement {
+  color: var(--gold);
+}
+
+.scanner-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.scanner-close {
+  text-align: center;
+  margin-top: 14px;
   font-size: 8px;
   color: var(--text-dim);
 }

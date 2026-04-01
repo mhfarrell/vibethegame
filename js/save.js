@@ -57,6 +57,7 @@ const SaveSystem = {
       player: Object.assign({}, defaults.player, state.player || {}),
       bugs: typeof state.bugs === 'number' ? state.bugs : defaults.bugs,
       totalBugsCollected: typeof state.totalBugsCollected === 'number' ? state.totalBugsCollected : defaults.totalBugsCollected,
+      goldenBugs: typeof state.goldenBugs === 'number' ? state.goldenBugs : defaults.goldenBugs,
       inventory: Array.isArray(state.inventory) ? state.inventory.slice() : defaults.inventory.slice(),
       activeQuests: state.activeQuests && typeof state.activeQuests === 'object' ? state.activeQuests : {},
       completedQuests: Array.isArray(state.completedQuests) ? state.completedQuests.slice() : [],
@@ -64,7 +65,7 @@ const SaveSystem = {
       npcMemory: state.npcMemory && typeof state.npcMemory === 'object' ? state.npcMemory : {},
       achievements: Array.isArray(state.achievements) ? state.achievements.slice() : [],
       playTime: typeof state.playTime === 'number' ? state.playTime : defaults.playTime,
-      version: 3,
+      version: 4,
       timeOfDay: typeof state.timeOfDay === 'number' ? state.timeOfDay : defaults.timeOfDay,
       petBug: typeof state.petBug === 'string' ? state.petBug : defaults.petBug,
       fishCaught: Array.isArray(state.fishCaught) ? state.fishCaught.slice() : [],
@@ -73,7 +74,8 @@ const SaveSystem = {
       bugLog: state.bugLog && typeof state.bugLog === 'object' ? state.bugLog : {},
       bestCombo: typeof state.bestCombo === 'number' ? state.bestCombo : defaults.bestCombo,
       discoveredBugTypes: Array.isArray(state.discoveredBugTypes) ? state.discoveredBugTypes.slice() : [],
-      lastObjectiveHint: typeof state.lastObjectiveHint === 'string' ? state.lastObjectiveHint : defaults.lastObjectiveHint
+      lastObjectiveHint: typeof state.lastObjectiveHint === 'string' ? state.lastObjectiveHint : defaults.lastObjectiveHint,
+      greatDebugTriggered: !!state.greatDebugTriggered
     };
   },
 
@@ -90,7 +92,7 @@ const SaveSystem = {
       npcMemory: {},
       achievements: [],
       playTime: 0,
-      version: 3,
+      version: 4,
       // New features
       timeOfDay: 0,
       petBug: null,
@@ -100,7 +102,8 @@ const SaveSystem = {
       bugLog: {},
       bestCombo: 0,
       discoveredBugTypes: [],
-      lastObjectiveHint: 'Talk to Professor Semicolon'
+      lastObjectiveHint: 'Talk to Professor Semicolon',
+      greatDebugTriggered: false
     };
   }
 };

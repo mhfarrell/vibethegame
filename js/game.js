@@ -25,6 +25,12 @@ var Game = (function () {
   var DASH_COOLDOWN = 1.2;
   var FISHING_CAST_TIME = 1.5;
   var FISHING_CATCH_WINDOW = 0.8;
+  var PULSE_STORM_INTERVAL = 42;
+  var PULSE_STORM_DURATION = 18;
+  var PULSE_STORM_BEAT = 0.82;
+  var SIGNAL_LURE_DURATION = 10;
+  var SIGNAL_LURE_COOLDOWN = 18;
+  var SIGNAL_LURE_RANGE = 170;
 
   // ====== STATE ======
   var canvas, ctx, minimapCanvas, minimapCtx;
@@ -70,8 +76,12 @@ var Game = (function () {
   var vibeBeatCount = 0;
   var screenShake = { x: 0, y: 0, intensity: 0, timer: 0 };
   var bestiaryOpen = false;
+  var scannerOpen = false;
   var catchFlash = { active: false, timer: 0 };
   var weather = { type: 'none', particles: [], active: false };
+  var scannerRefreshTimer = 0;
+  var pulseStorm = { active: false, timer: 0, beat: 0, phase: 'calm', flash: 0 };
+  var signalLure = { active: false, x: 0, y: 0, timer: 0, cooldown: 0, pulse: 0 };
 
   // Noise seed for terrain variation
   var noiseSeed = [];
@@ -95,6 +105,35 @@ var Game = (function () {
   function isNightTime(value) {
     var t = typeof value === 'number' ? value : timeOfDay;
     return t > 0.5 || t < 0.25;
+  }
+
+  function cloneBugPool(pool) {
+    var copy = [];
+    for (var i = 0; i < pool.length; i++) {
+      copy.push({ id: pool[i].id, weight: pool[i].weight });
+    }
+    return copy;
+  }
+
+  function addPoolWeight(pool, bugId, weight) {
+    for (var i = 0; i < pool.length; i++) {
+      if (pool[i].id === bugId) {
+        pool[i].weight += weight;
+        return;
+      }
+    }
+    pool.push({ id: bugId, weight: weight });
+  }
+
+  function getStormAdjustedBugPool(basePool) {
+    if (!pulseStorm.active) return basePool;
+    var adjusted = cloneBugPool(basePool);
+    for (var i = 0; i < adjusted.length; i++) {
+      if (adjusted[i].id === 'glitchling') adjusted[i].weight += 30;
+      else adjusted[i].weight = Math.max(8, Math.round(adjusted[i].weight * 0.8));
+    }
+    addPoolWeight(adjusted, 'glitchling', areaId === 'neon_garden' ? 38 : 24);
+    return adjusted;
   }
 
   function getDefaultBugPool() {
@@ -143,7 +182,8 @@ var Game = (function () {
   function getActiveBugPool() {
     var area = GameData.areas[areaId] || {};
     var pool = isNightTime() && area.nightBugPool ? area.nightBugPool : area.bugPool;
-    return pool && pool.length ? pool : getDefaultBugPool();
+    var activePool = pool && pool.length ? pool : getDefaultBugPool();
+    return getStormAdjustedBugPool(activePool);
   }
 
   function rollBugType() {
@@ -164,6 +204,122 @@ var Game = (function () {
 
   function canDash() {
     return state && state.inventory.indexOf('pulse_pack') !== -1;
+  }
+
+  function canUseSignalLure() {
+    return state && state.inventory.indexOf('signal_lure') !== -1;
+  }
+
+  function resetPulseStormCountdown(initial) {
+    pulseStorm.active = false;
+    pulseStorm.beat = 0;
+    pulseStorm.phase = 'calm';
+    pulseStorm.flash = 0;
+    pulseStorm.timer = (initial ? PULSE_STORM_INTERVAL * 0.55 : PULSE_STORM_INTERVAL) + Math.random() * 8;
+  }
+
+  function getBugFocusTarget() {
+    if (signalLure.active) {
+      return { x: signalLure.x, y: signalLure.y };
+    }
+    return {
+      x: state.player.x + TILE / 2,
+      y: state.player.y + PLAYER_OFFSET_Y
+    };
+  }
+
+  function electrifyBug(bug) {
+    if (!bug) return;
+    bug.stormCharged = true;
+    bug.glowPhase += 0.8;
+  }
+
+  function startPulseStorm() {
+    pulseStorm.active = true;
+    pulseStorm.timer = PULSE_STORM_DURATION;
+    pulseStorm.beat = 0;
+    pulseStorm.phase = 'pull';
+    pulseStorm.flash = 0.6;
+    for (var i = 0; i < bugs.length; i++) electrifyBug(bugs[i]);
+    showNotification(signalLure.active ? 'PULSE STORM // lure signal amplified' : 'PULSE STORM // catch the surge');
+    playSound('storm');
+    updateHUD();
+  }
+
+  function endPulseStorm() {
+    pulseStorm.active = false;
+    pulseStorm.phase = 'calm';
+    pulseStorm.beat = 0;
+    pulseStorm.flash = 0.25;
+    resetPulseStormCountdown(false);
+    showNotification('Pulse Storm dissipated');
+    updateHUD();
+  }
+
+  function updatePulseStorm(dt) {
+    if (!started || !state) return;
+    if (pulseStorm.active) {
+      pulseStorm.timer = Math.max(0, pulseStorm.timer - dt);
+      pulseStorm.beat += dt;
+      pulseStorm.flash = Math.max(0, pulseStorm.flash - dt * 1.4);
+      if (pulseStorm.beat >= PULSE_STORM_BEAT) {
+        pulseStorm.beat -= PULSE_STORM_BEAT;
+        pulseStorm.phase = pulseStorm.phase === 'pull' ? 'scatter' : 'pull';
+        pulseStorm.flash = 0.24;
+        var focus = getBugFocusTarget();
+        for (var i = 0; i < 7; i++) {
+          var angle = (i / 7) * Math.PI * 2 + gameTime * 0.6;
+          particles.push({
+            x: focus.x + Math.cos(angle) * 18,
+            y: focus.y + Math.sin(angle) * 18,
+            vx: Math.cos(angle) * 18,
+            vy: Math.sin(angle) * 18,
+            life: 0.35,
+            maxLife: 0.35,
+            color: pulseStorm.phase === 'pull' ? '#29d7ff' : '#ff4d8d',
+            size: 2.5
+          });
+        }
+      }
+      if (pulseStorm.timer <= 0) endPulseStorm();
+    } else {
+      pulseStorm.timer -= dt;
+      if (pulseStorm.timer <= 0) startPulseStorm();
+    }
+  }
+
+  function deploySignalLure() {
+    if (!canUseSignalLure()) {
+      showNotification('You need Vivian\'s Signal Lure first.');
+      return;
+    }
+    if (signalLure.cooldown > 0) {
+      showNotification('Signal Lure recharging: ' + signalLure.cooldown.toFixed(1) + 's');
+      return;
+    }
+    signalLure.active = true;
+    signalLure.x = state.player.x + TILE / 2;
+    signalLure.y = state.player.y + PLAYER_OFFSET_Y;
+    signalLure.timer = SIGNAL_LURE_DURATION;
+    signalLure.cooldown = SIGNAL_LURE_DURATION + SIGNAL_LURE_COOLDOWN;
+    signalLure.pulse = 0;
+    playSound('lure');
+    showNotification(pulseStorm.active ? 'Signal Lure deployed // storm synced' : 'Signal Lure deployed');
+    updateHUD();
+  }
+
+  function updateSignalLure(dt) {
+    if (signalLure.cooldown > 0) {
+      signalLure.cooldown = Math.max(0, signalLure.cooldown - dt);
+    }
+    if (!signalLure.active) return;
+    signalLure.timer = Math.max(0, signalLure.timer - dt);
+    signalLure.pulse += dt * (pulseStorm.active ? 9 : 6);
+    if (signalLure.timer <= 0) {
+      signalLure.active = false;
+      showNotification('Signal Lure burnt out');
+      updateHUD();
+    }
   }
 
   // ====== SOUND ======
@@ -246,6 +402,23 @@ var Game = (function () {
           gain.gain.setValueAtTime(0.15, t);
           gain.gain.linearRampToValueAtTime(0, t + 0.6);
           osc.start(t); osc.stop(t + 0.6);
+          break;
+        case 'storm':
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(180, t);
+          osc.frequency.linearRampToValueAtTime(260, t + 0.12);
+          osc.frequency.linearRampToValueAtTime(120, t + 0.35);
+          gain.gain.setValueAtTime(0.12, t);
+          gain.gain.linearRampToValueAtTime(0, t + 0.38);
+          osc.start(t); osc.stop(t + 0.38);
+          break;
+        case 'lure':
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(520, t);
+          osc.frequency.linearRampToValueAtTime(780, t + 0.08);
+          gain.gain.setValueAtTime(0.1, t);
+          gain.gain.linearRampToValueAtTime(0, t + 0.18);
+          osc.start(t); osc.stop(t + 0.18);
           break;
         case 'fish_cast':
           osc.type = 'sine';
@@ -352,6 +525,8 @@ var Game = (function () {
     dom.objectiveDisplay = document.getElementById('objective-display');
     dom.comboDisplay = document.getElementById('combo-display');
     dom.dashDisplay = document.getElementById('dash-display');
+    dom.lureDisplay = document.getElementById('lure-display');
+    dom.stormDisplay = document.getElementById('storm-display');
     dom.questIndicator = document.getElementById('quest-indicator');
     dom.goldenBugs = document.getElementById('golden-bugs');
     dom.interactPrompt = document.getElementById('interact-prompt');
@@ -370,6 +545,7 @@ var Game = (function () {
     dom.transitionOverlay = document.getElementById('transition-overlay');
     dom.cookieBanner = document.getElementById('cookie-banner');
     dom.bestiaryPanel = document.getElementById('bestiary-panel');
+    dom.scannerPanel = document.getElementById('scanner-panel');
 
     minimapCanvas = document.getElementById('minimap');
     minimapCtx = minimapCanvas.getContext('2d');
@@ -407,6 +583,9 @@ var Game = (function () {
     document.getElementById('menu-quests').addEventListener('click', function () {
       toggleMenu(); toggleQuests();
     });
+    document.getElementById('menu-scanner').addEventListener('click', function () {
+      toggleMenu(); toggleScanner();
+    });
     document.getElementById('menu-delete').addEventListener('click', function () {
       if (confirm('Delete all save data? This cannot be undone!')) {
         SaveSystem.clear();
@@ -436,6 +615,12 @@ var Game = (function () {
     dom.hud.style.display = 'flex';
     state = SaveSystem.load() || SaveSystem.getDefaultState();
     timeOfDay = typeof state.timeOfDay === 'number' ? state.timeOfDay : 0;
+    resetPulseStormCountdown(true);
+    signalLure.active = false;
+    signalLure.cooldown = 0;
+    signalLure.timer = 0;
+    signalLure.pulse = 0;
+    scannerRefreshTimer = 0;
     loadArea(state.player.area);
     lastTimestamp = performance.now();
   }
@@ -459,14 +644,14 @@ var Game = (function () {
     if (key === 'enter') {
       e.preventDefault();
       if (!started) { startGame(); return; }
-      if (menuOpen || dialogueOpen) return;
+      if (menuOpen || dialogueOpen || scannerOpen) return;
       if (inventoryOpen) { toggleInventory(); return; }
       if (questsOpen) { toggleQuests(); return; }
       if (nearestNPC) openDialogue(nearestNPC);
     }
     if (key === ' ') {
       e.preventDefault();
-      if (!started || dialogueOpen || menuOpen || inventoryOpen || questsOpen || bestiaryOpen) return;
+      if (!started || dialogueOpen || menuOpen || inventoryOpen || questsOpen || bestiaryOpen || scannerOpen) return;
       attemptCatchBug();
     }
     if (key === 'escape') {
@@ -475,35 +660,47 @@ var Game = (function () {
       if (inventoryOpen) { toggleInventory(); return; }
       if (questsOpen) { toggleQuests(); return; }
       if (bestiaryOpen) { toggleBestiary(); return; }
+      if (scannerOpen) { toggleScanner(); return; }
       if (started) toggleMenu();
     }
-    if (key === 'i' && started && !dialogueOpen && !menuOpen) {
+    if (key === 'i' && started && !dialogueOpen && !menuOpen && !scannerOpen) {
       e.preventDefault();
       if (questsOpen) toggleQuests();
       toggleInventory();
     }
-    if (key === 'q' && started && !dialogueOpen && !menuOpen) {
+    if (key === 'q' && started && !dialogueOpen && !menuOpen && !scannerOpen) {
       e.preventDefault();
       if (inventoryOpen) toggleInventory();
       toggleQuests();
     }
-    if (key === 'f' && started && !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen) {
+    if (key === 'f' && started && !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen && !scannerOpen) {
       e.preventDefault();
       attemptFishing();
     }
     if ((key === 'shift' || key === 'shiftleft' || key === 'shiftright') && started &&
-        !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen) {
+        !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen && !scannerOpen) {
       e.preventDefault();
       attemptDash();
     }
-    if (key === 'b' && started && !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen) {
+    if (key === 'b' && started && !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen && !scannerOpen) {
       e.preventDefault();
       if (bestiaryOpen) { toggleBestiary(); return; }
       toggleBestiary();
     }
-    if (key === 'p' && started && !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen) {
+    if (key === 'p' && started && !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen && !scannerOpen) {
       e.preventDefault();
       togglePetMenu();
+    }
+    if (key === 'l' && started && !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen && !bestiaryOpen && !scannerOpen) {
+      e.preventDefault();
+      deploySignalLure();
+    }
+    if (key === 'm' && started && !dialogueOpen && !menuOpen) {
+      e.preventDefault();
+      if (inventoryOpen) toggleInventory();
+      if (questsOpen) toggleQuests();
+      if (bestiaryOpen) toggleBestiary();
+      toggleScanner();
     }
   }
 
@@ -526,6 +723,20 @@ var Game = (function () {
         else attemptCatchBug();
       });
     }
+    var lureBtn = document.querySelector('.mobile-action .lure');
+    if (lureBtn) {
+      lureBtn.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        if (!dialogueOpen && !menuOpen) deploySignalLure();
+      });
+    }
+    var scanBtn = document.querySelector('.mobile-action .scan');
+    if (scanBtn) {
+      scanBtn.addEventListener('touchstart', function (e) {
+        e.preventDefault();
+        if (!dialogueOpen && !menuOpen) toggleScanner();
+      });
+    }
   }
 
   // ====== AREA MANAGEMENT ======
@@ -537,9 +748,12 @@ var Game = (function () {
     bugs = [];
     fishingState.active = false;
     fishingState.waiting = false;
+    signalLure.active = false;
+    signalLure.timer = 0;
     spawnInitialBugs();
     updateHUD();
     drawMinimap();
+    if (scannerOpen) renderScanner();
 
     if (state.unlockedAreas.indexOf(id) === -1) state.unlockedAreas.push(id);
     if (id === 'twilight_grove' && state.achievements.indexOf('night_owl') === -1) {
@@ -582,7 +796,8 @@ var Game = (function () {
       fleeing: false,
       fleeTimer: 0,
       caught: false,
-      catchAnim: 0
+      catchAnim: 0,
+      stormCharged: pulseStorm.active
     };
   }
 
@@ -598,6 +813,7 @@ var Game = (function () {
     if (state.petBug === 'duskwing') bugsEarned += 1;
     if (state.petBug === 'moonfire' && isNightTime() && bug.bugType === 'moonfire') bugsEarned += 1;
     if (state.petBug === 'dreamspinner' && comboState.count >= 3) bugsEarned += 1;
+    if (bug.stormCharged) bugsEarned += bug.bugType === 'glitchling' ? 2 : 1;
     if (vibeMode.active) bugsEarned = bugsEarned * 2;
 
     state.bugs += bugsEarned;
@@ -605,6 +821,7 @@ var Game = (function () {
 
     // Golden bug chance (10% on catch, 25% in Vibe Mode)
     var goldenChance = vibeMode.active ? 0.25 : 0.1;
+    if (bug.stormCharged) goldenChance += 0.08;
     if (Math.random() < goldenChance) {
       state.goldenBugs = (state.goldenBugs || 0) + 1;
       particles.push({
@@ -622,6 +839,7 @@ var Game = (function () {
     }
     state.bestCombo = Math.max(state.bestCombo || 0, comboState.count);
     comboState.lastGain = bugsEarned;
+    if (bug.stormCharged) comboState.timer = Math.min(COMBO_WINDOW + 2, comboState.timer + 0.8);
 
     // THE GREAT DEBUG - Collect 100 golden bugs to complete
     if (state.goldenBugs >= 100 && !state.greatDebugTriggered) {
@@ -859,6 +1077,9 @@ var Game = (function () {
         vibeMode.intensity = Math.max(0, vibeMode.intensity - dt * 3);
       }
 
+      updatePulseStorm(dt);
+      updateSignalLure(dt);
+
       timeOfDay = (timeOfDay + dt / DAY_DURATION) % 1;
       var wasNight = isNightTime();
       state.timeOfDay = timeOfDay;
@@ -866,15 +1087,17 @@ var Game = (function () {
         playSound('day_night');
       }
 
-      if (!dialogueOpen && !inventoryOpen && !menuOpen && !questsOpen && !bestiaryOpen) {
+      if (!dialogueOpen && !inventoryOpen && !menuOpen && !questsOpen && !bestiaryOpen && !scannerOpen) {
         updatePlayer(dt);
         updateBugs(dt);
         checkNPCProximity();
         checkPortals();
 
         bugTimer += dt;
-        if (bugTimer > BUG_SPAWN_INTERVAL) {
+        var spawnInterval = pulseStorm.active ? BUG_SPAWN_INTERVAL * 0.45 : BUG_SPAWN_INTERVAL;
+        if (bugTimer > spawnInterval) {
           spawnRandomBug();
+          if (pulseStorm.active && Math.random() < 0.55) spawnRandomBug();
           bugTimer = 0;
         }
 
@@ -896,6 +1119,14 @@ var Game = (function () {
       if (achieveTimer > 0) {
         achieveTimer -= dt;
         if (achieveTimer <= 0) dom.achievePopup.style.display = 'none';
+      }
+      updateHUD();
+      if (scannerOpen) {
+        scannerRefreshTimer -= dt;
+        if (scannerRefreshTimer <= 0) {
+          renderScanner();
+          scannerRefreshTimer = 0.25;
+        }
       }
     }
 
@@ -924,8 +1155,8 @@ var Game = (function () {
       if (dx && dy) { dx *= 0.707; dy *= 0.707; }
     }
 
-    if (dx !== 0 || dy !== 0) {
-      playerMoved = true;
+    playerMoved = dx !== 0 || dy !== 0;
+    if (playerMoved) {
       if (Math.abs(dx) > Math.abs(dy)) state.player.dir = dx > 0 ? 3 : 2;
       else state.player.dir = dy > 0 ? 0 : 1;
       walkTimer += dt;
@@ -1001,6 +1232,9 @@ var Game = (function () {
     var py = state.player.y + TILE / 2;
     var mapW = currentMap[0].length * TILE;
     var mapH = currentMap.length * TILE;
+    var focus = getBugFocusTarget();
+    var fx = focus.x;
+    var fy = focus.y;
 
     for (var i = 0; i < bugs.length; i++) {
       var b = bugs[i];
@@ -1009,6 +1243,45 @@ var Game = (function () {
 
       var bx = px - b.x, by = py - b.y;
       var playerDist = Math.sqrt(bx * bx + by * by);
+      var tx = fx - b.x, ty = fy - b.y;
+      var targetDist = Math.sqrt(tx * tx + ty * ty);
+
+      if (pulseStorm.active) {
+        electrifyBug(b);
+        var direction = pulseStorm.phase === 'pull' ? 1 : -1;
+        var stormSpeed = (pulseStorm.phase === 'pull' ? 92 : 124) + (b.speed || 12) * 3;
+        if (targetDist > 4) {
+          var stormX = b.x + (tx / targetDist) * stormSpeed * dt * direction;
+          var stormY = b.y + (ty / targetDist) * stormSpeed * dt * direction;
+          stormX = Math.max(TILE, Math.min(stormX, mapW - TILE));
+          stormY = Math.max(TILE, Math.min(stormY, mapH - TILE));
+          if (isTileWalkable(stormX, stormY)) {
+            b.x = stormX;
+            b.y = stormY;
+          } else {
+            b.wanderAngle += Math.PI * 0.7;
+          }
+        }
+        b.fleeing = pulseStorm.phase === 'scatter' && targetDist < BUG_FLEE_DIST * 1.6;
+        b.wanderAngle += dt * (pulseStorm.phase === 'pull' ? 4 : 7);
+        b.bobOffset += dt * 8;
+        continue;
+      }
+
+      if (signalLure.active && targetDist < SIGNAL_LURE_RANGE && targetDist > 4) {
+        b.wanderAngle = Math.atan2(ty, tx);
+        var lureSpeed = 44 + (b.speed || 12) * 2.2;
+        var lureX = b.x + (tx / targetDist) * lureSpeed * dt;
+        var lureY = b.y + (ty / targetDist) * lureSpeed * dt;
+        lureX = Math.max(TILE, Math.min(lureX, mapW - TILE));
+        lureY = Math.max(TILE, Math.min(lureY, mapH - TILE));
+        if (isTileWalkable(lureX, lureY)) {
+          b.x = lureX;
+          b.y = lureY;
+          b.fleeing = false;
+          continue;
+        }
+      }
 
       // Vibe Mode: bugs dance instead of fleeing
       if (vibeMode.active) {
@@ -1710,6 +1983,8 @@ var Game = (function () {
       }
     }
 
+    if (signalLure.active) drawSignalLure();
+
     // Render bugs
     for (var i = 0; i < bugs.length; i++) drawBugSprite(bugs[i]);
 
@@ -1749,6 +2024,7 @@ var Game = (function () {
 
     // Vibe mode overlay (not shaken)
     drawVibeOverlay();
+    drawPulseStormOverlay();
   }
 
   function drawDayNightOverlay() {
@@ -1815,6 +2091,28 @@ var Game = (function () {
     ctx.ellipse(sx + 3, sy - 2, 3, 5, 0.5 - wingF, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
+  }
+
+  function drawSignalLure() {
+    if (!signalLure.active) return;
+    var sx = Math.floor(signalLure.x - camera.x);
+    var sy = Math.floor(signalLure.y - camera.y);
+    var pulse = 12 + Math.sin(signalLure.pulse) * 4;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 213, 79, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(sx, sy, pulse, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(41, 215, 255, 0.55)';
+    ctx.beginPath();
+    ctx.arc(sx, sy, pulse + 8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = '#ffd54f';
+    ctx.fillRect(sx - 4, sy - 4, 8, 8);
+    ctx.fillStyle = '#29d7ff';
+    ctx.fillRect(sx - 2, sy - 12, 4, 6);
+    ctx.restore();
   }
 
   function hexToRgb(hex) {
@@ -2261,6 +2559,13 @@ var Game = (function () {
     ctx.beginPath();
     ctx.arc(sx, sy, 12, 0, Math.PI * 2);
     ctx.fill();
+    if (bug.stormCharged) {
+      ctx.strokeStyle = 'rgba(41, 215, 255, 0.75)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 14 + Math.sin(gameTime * 10 + bug.bobOffset) * 2, 0, Math.PI * 2);
+      ctx.stroke();
+    }
 
     if (art.bugSheet && art.bugSheet.complete && art.bugSheet.naturalWidth) {
       var frame = Math.floor((gameTime * 10 + bug.bobOffset) % 2);
@@ -2662,6 +2967,38 @@ var Game = (function () {
     }
   }
 
+  function drawPulseStormOverlay() {
+    if (!pulseStorm.active && pulseStorm.flash <= 0) return;
+    var flash = pulseStorm.active ? 0.12 + pulseStorm.flash * 0.4 : pulseStorm.flash * 0.2;
+    var tintTop = pulseStorm.phase === 'scatter' ? '255,77,141' : '41,215,255';
+    var tintBottom = pulseStorm.phase === 'scatter' ? '255,213,79' : '255,122,89';
+    var gradient = ctx.createLinearGradient(0, 0, 0, canvasH);
+    gradient.addColorStop(0, 'rgba(' + tintTop + ',' + flash + ')');
+    gradient.addColorStop(1, 'rgba(' + tintBottom + ',' + (flash * 0.35) + ')');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvasW, canvasH);
+
+    if (!pulseStorm.active) return;
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    for (var y = 0; y < canvasH; y += 20) {
+      var offset = Math.sin(gameTime * 6 + y * 0.06) * 18;
+      ctx.beginPath();
+      ctx.moveTo(offset, y);
+      ctx.lineTo(canvasW + offset, y);
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = 0.85;
+    ctx.font = '8px "Press Start 2P", monospace';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = pulseStorm.phase === 'scatter' ? '#ffd54f' : '#29d7ff';
+    ctx.fillText('PULSE STORM // ' + pulseStorm.phase.toUpperCase(), canvasW / 2, canvasH - 28);
+    ctx.textAlign = 'left';
+    ctx.globalAlpha = 1;
+  }
+
   // ====== WEATHER SYSTEM ======
   function updateWeather(dt) {
     // Only spawn weather in outdoor areas
@@ -2772,6 +3109,137 @@ var Game = (function () {
     });
   }
 
+  function getAreaScannerHint() {
+    switch (areaId) {
+      case 'spawn_village':
+        return 'Central hub. Good place to restock, talk to Vivian, and watch storm routes open toward the outer zones.';
+      case 'syntax_meadows':
+        return 'High grass, dense bug traffic, and wide lanes. Best place to set a lure before a storm flips to pull.';
+      case 'repository':
+        return 'Low spawn pressure, but the route data here is clean. Use the scanner to plan the next portal hop.';
+      case 'null_caves':
+        return 'Tight corridors turn scatter phases dangerous. Stay mobile and keep bugs from pinning you in.';
+      case 'cloud_nine':
+        return 'Fast skimmers and exposed lanes. Great for combo extension once the storm starts feeding glitchlings in.';
+      case 'twilight_grove':
+        return 'Night bugs spike after dusk, and the pond gives you a safer lane when the storm gets noisy.';
+      case 'neon_garden':
+        return 'Storm-native territory. Expect harder swings, denser glitchlings, and the best returns for aggressive chains.';
+      default:
+        return 'Scan the field, watch the routes, and follow the strongest signal.';
+    }
+  }
+
+  function getWeatherLabel() {
+    if (!weather.active) return 'Clear';
+    return weather.type === 'snow' ? 'Snowfall' : 'Rain';
+  }
+
+  function getSignalLureLabel() {
+    if (!canUseSignalLure()) return 'Locked';
+    if (signalLure.active) return 'Active for ' + Math.ceil(signalLure.timer) + 's';
+    if (signalLure.cooldown > 0) return 'Recharging ' + signalLure.cooldown.toFixed(1) + 's';
+    return 'Ready';
+  }
+
+  function getStormLabel() {
+    if (pulseStorm.active) {
+      return 'ACTIVE // ' + pulseStorm.phase.toUpperCase() + ' // ' + Math.ceil(pulseStorm.timer) + 's';
+    }
+    return 'Calm // next surge in ' + Math.ceil(pulseStorm.timer) + 's';
+  }
+
+  function toggleScanner() {
+    scannerOpen = !scannerOpen;
+    dom.scannerPanel.style.display = scannerOpen ? 'block' : 'none';
+    if (scannerOpen) dom.interactPrompt.style.display = 'none';
+    else if (started) checkNPCProximity();
+    scannerRefreshTimer = 0;
+    if (scannerOpen) renderScanner();
+  }
+
+  function renderScanner() {
+    if (!dom.scannerPanel || !state) return;
+    var grid = dom.scannerPanel.querySelector('.scanner-grid');
+    if (!grid) return;
+
+    var area = GameData.areas[areaId];
+    if (!area) {
+      grid.innerHTML = '';
+      return;
+    }
+
+    var pool = getActiveBugPool();
+    var totalWeight = 0;
+    for (var i = 0; i < pool.length; i++) totalWeight += pool[i].weight;
+
+    var speciesHtml = '';
+    for (var p = 0; p < pool.length; p++) {
+      var entry = pool[p];
+      var def = getBugDef(entry.id);
+      var seen = state.bugLog[entry.id] || 0;
+      var percent = totalWeight > 0 ? Math.round((entry.weight / totalWeight) * 100) : 0;
+      speciesHtml +=
+        '<div class="scanner-row">' +
+          '<span class="scanner-row-name" style="color:' + def.color + '">' + def.name + '</span>' +
+          '<span class="scanner-row-meta">' + percent + '% • seen ' + seen + '</span>' +
+        '</div>';
+    }
+    if (!speciesHtml) speciesHtml = '<div class="scanner-empty">No viable bug signatures found.</div>';
+
+    var routeSeen = {};
+    var routesHtml = '';
+    for (var r = 0; r < area.portals.length; r++) {
+      var portal = area.portals[r];
+      if (routeSeen[portal.dest]) continue;
+      routeSeen[portal.dest] = true;
+      var destArea = GameData.areas[portal.dest];
+      var routeState = 'online';
+      var routeText = 'Online';
+      if (portal.requireItem && state.inventory.indexOf(portal.requireItem) === -1) {
+        routeState = 'requirement';
+        routeText = 'Need ' + GameData.items[portal.requireItem].name;
+      } else if (state.unlockedAreas.indexOf(portal.dest) === -1) {
+        routeState = 'locked';
+        routeText = 'Locked';
+      }
+      routesHtml +=
+        '<div class="scanner-row">' +
+          '<span class="scanner-row-name">' + (destArea ? destArea.name : portal.dest) + '</span>' +
+          '<span class="scanner-state scanner-state-' + routeState + '">' + routeText + '</span>' +
+        '</div>';
+    }
+    if (!routesHtml) routesHtml = '<div class="scanner-empty">No route signatures in this zone.</div>';
+
+    grid.innerHTML =
+      '<section class="scanner-card">' +
+        '<div class="scanner-kicker">Zone</div>' +
+        '<div class="scanner-title">' + area.name + '</div>' +
+        '<div class="scanner-body">' + getAreaScannerHint() + '</div>' +
+        '<div class="scanner-pill-row">' +
+          '<span class="scanner-pill">' + (isNightTime() ? 'Night Cycle' : 'Day Cycle') + '</span>' +
+          '<span class="scanner-pill">' + getWeatherLabel() + '</span>' +
+        '</div>' +
+      '</section>' +
+      '<section class="scanner-card">' +
+        '<div class="scanner-kicker">Bug Forecast</div>' +
+        '<div class="scanner-list">' + speciesHtml + '</div>' +
+      '</section>' +
+      '<section class="scanner-card">' +
+        '<div class="scanner-kicker">Routes</div>' +
+        '<div class="scanner-list">' + routesHtml + '</div>' +
+      '</section>' +
+      '<section class="scanner-card">' +
+        '<div class="scanner-kicker">Systems</div>' +
+        '<div class="scanner-stack">' +
+          '<div><strong>Objective:</strong> ' + getActiveObjectiveText() + '</div>' +
+          '<div><strong>Storm:</strong> ' + getStormLabel() + '</div>' +
+          '<div><strong>Signal Lure:</strong> ' + getSignalLureLabel() + '</div>' +
+          '<div><strong>Chain:</strong> x' + comboState.count + ' now • best x' + (state.bestCombo || 0) + '</div>' +
+        '</div>' +
+      '</section>';
+  }
+
   // ====== UI ======
   function updateHUD() {
     if (!state) return;
@@ -2787,6 +3255,30 @@ var Game = (function () {
       else if (dashState.cooldown > 0) dom.dashDisplay.textContent = 'Dash ' + dashState.cooldown.toFixed(1) + 's';
       else dom.dashDisplay.textContent = 'Dash Ready';
       dom.dashDisplay.dataset.state = !canDash() ? 'locked' : (dashState.cooldown > 0 ? 'cooldown' : 'ready');
+    }
+    if (dom.lureDisplay) {
+      if (!canUseSignalLure()) {
+        dom.lureDisplay.textContent = 'Lure Locked';
+        dom.lureDisplay.dataset.state = 'locked';
+      } else if (signalLure.active) {
+        dom.lureDisplay.textContent = 'Lure ' + Math.ceil(signalLure.timer) + 's';
+        dom.lureDisplay.dataset.state = 'active';
+      } else if (signalLure.cooldown > 0) {
+        dom.lureDisplay.textContent = 'Lure ' + signalLure.cooldown.toFixed(1) + 's';
+        dom.lureDisplay.dataset.state = 'cooldown';
+      } else {
+        dom.lureDisplay.textContent = 'Lure Ready';
+        dom.lureDisplay.dataset.state = 'ready';
+      }
+    }
+    if (dom.stormDisplay) {
+      if (pulseStorm.active) {
+        dom.stormDisplay.textContent = 'Storm ' + pulseStorm.phase.toUpperCase() + ' ' + Math.ceil(pulseStorm.timer) + 's';
+        dom.stormDisplay.dataset.state = pulseStorm.phase;
+      } else {
+        dom.stormDisplay.textContent = 'Calm ' + Math.ceil(pulseStorm.timer) + 's';
+        dom.stormDisplay.dataset.state = 'calm';
+      }
     }
     var activeCount = Object.keys(state.activeQuests).length;
     if (activeCount > 0) {
@@ -2809,7 +3301,7 @@ var Game = (function () {
     notifTimer = 3;
   }
 
-  function triggerGreatDebugMilestone() {
+  function triggerGreatDebugMilestone(message) {
     transitioning = true;
     var overlay = dom.transitionOverlay;
     overlay.style.transition = 'opacity 2s';
@@ -2829,43 +3321,9 @@ var Game = (function () {
       style.textContent = '@keyframes glowPulse{0%,100%{text-shadow:0 0 20px #66bb6a,0 0 40px #66bb6a}50%{text-shadow:0 0 40px #66bb6a,0 0 80px #66bb6a,0 0 120px #29d7ff}}';
       document.head.appendChild(style);
       
-      showNotification('You are now a Legend of the Vibeverse!');
+      showNotification(message || 'You are now a Legend of the Vibeverse!');
       
       setTimeout(function() {
-        state.achievements.push('legend');
-        unlockAchievement('legend');
-        transitioning = false;
-        overlay.style.transition = 'opacity 1s';
-        overlay.style.opacity = '0';
-        if (glTitle.parentNode) glTitle.parentNode.removeChild(glTitle);
-      }, 4000);
-    }, 2000);
-  }
-
-  function triggerGreatDebugEnding() {
-    transitioning = true;
-    var overlay = dom.transitionOverlay;
-    overlay.style.transition = 'opacity 2s';
-    overlay.style.opacity = '1';
-    
-    setTimeout(function() {
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, canvasW, canvasH);
-      
-      var glTitle = document.createElement('div');
-      glTitle.id = 'great-debug-title';
-      glTitle.innerHTML = '<span>THE</span><span>GREAT</span><span>DEBUG</span>';
-      glTitle.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:var(--font-pixel);font-size:32px;color:#66bb6a;text-align:center;animation:glowPulse 2s infinite;';
-      document.getElementById('game-container').appendChild(glTitle);
-      
-      var style = document.createElement('style');
-      style.textContent = '@keyframes glowPulse{0%,100%{text-shadow:0 0 20px #66bb6a,0 0 40px #66bb6a}50%{text-shadow:0 0 40px #66bb6a,0 0 80px #66bb6a,0 0 120px #29d7ff}}';
-      document.head.appendChild(style);
-      
-      showNotification('You have optimized the Vibeverse. You are now a Legend.');
-      
-      setTimeout(function() {
-        state.achievements.push('legend');
         unlockAchievement('legend');
         transitioning = false;
         overlay.style.transition = 'opacity 1s';
@@ -2876,6 +3334,7 @@ var Game = (function () {
   }
 
   function unlockAchievement(id) {
+    if (!state || state.achievements.indexOf(id) !== -1) return;
     state.achievements.push(id);
     var def = GameData.achievementDefs.find(function (a) { return a.id === id; });
     if (!def) return;
@@ -2901,6 +3360,7 @@ var Game = (function () {
         bug_net: '\uD83E\uDD8B', 
         lantern: '\uD83D\uDD26', 
         speed_boots: '\uD83D\uDC62', 
+        signal_lure: '\uD83D\uDCE1',
         bug_magnet: '\uD83E\uDDF2', 
         portal_key: '\uD83D\uDD11',
         fishing_rod: '\uD83C\uDFA3',

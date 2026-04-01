@@ -429,7 +429,7 @@ var GameData = (function () {
       greeting: "Welcome to Vivian's Emporium! The finest bug-bought goods in the Vibeverse! Say 'shop' to see my wares!",
       topics: [
         { kw: ['shop','buy','item','wares','sell','purchase','browse','catalog','store','stock'],
-          text: "Here's what I've got in stock:\n\n  Bug Net (20 bugs) - Catch bugs 2x faster\n  Lantern (35 bugs) - Light up dark caves\n  Speed Boots (50 bugs) - Move 50% faster\n  Bug Magnet (75 bugs) - Attract nearby bugs\n  Portal Key (100 bugs) - Unlock Cloud Nine\n  Fishing Rod (30 bugs) - Fish in ponds\n  Premium Bait (10 bugs) - Attract rare fish\n  Moon Lantern (60 bugs) - Reveal night bugs\n\nJust tell me the item name to buy it!" },
+          text: "Here's what I've got in stock:\n\n  Bug Net (20 bugs) - Catch bugs 2x faster\n  Lantern (35 bugs) - Light up dark caves\n  Speed Boots (50 bugs) - Move 50% faster\n  Signal Lure (65 bugs) - Drop a beacon that pulls bugs in\n  Bug Magnet (75 bugs) - Attract nearby bugs\n  Portal Key (100 bugs) - Unlock Cloud Nine\n  Fishing Rod (30 bugs) - Fish in ponds\n  Premium Bait (10 bugs) - Attract rare fish\n  Moon Lantern (60 bugs) - Reveal night bugs\n\nJust tell me the item name to buy it!" },
         { kw: ['net','bug net'],
           text: "The Bug Net! Doubles your bug-catching speed in tall grass. A must-have for any serious collector! That'll be 20 bugs.",
           shopItem: 'bug_net', price: 20 },
@@ -454,6 +454,9 @@ var GameData = (function () {
         { kw: ['moon','moon lantern','night'],
           text: "The Moon Lantern! Reveals hidden night bugs that only appear in darkness. The Twilight Grove is perfect for this! 60 bugs.",
           shopItem: 'moon_lantern', price: 60 },
+        { kw: ['lure','signal lure','signal','beacon','decoy'],
+          text: "The Signal Lure! Drop it with L and every bug in range starts drifting toward the beacon. Perfect when the Pulse Storm kicks up. 65 bugs.",
+          shopItem: 'signal_lure', price: 65 },
         { kw: ['who','name','you','yourself','vivian'],
           text: "I'm Vendor Vivian! Been selling wares since the first git commit. Every bug you spend keeps the economy of the Vibeverse spinning!" },
         { kw: ['hello','hi','hey'],
@@ -772,6 +775,7 @@ var GameData = (function () {
     premium_bait:  { name: 'Premium Bait', desc: 'Attracts rare fish',                price: 10,  icon: 'bait' },
     fish_jar:      { name: 'Fish Jar',     desc: 'Store your fish catches',           price: 15,  icon: 'jar' },
     moon_lantern:  { name: 'Moon Lantern', desc: 'Reveals hidden night bugs',         price: 60,  icon: 'moon' },
+    signal_lure:   { name: 'Signal Lure',  desc: 'Press L to drop a temporary bug beacon', price: 65, icon: 'lure' },
     pulse_pack:    { name: 'Pulse Pack',   desc: 'Tap SHIFT to dash and keep combos rolling', price: 0, icon: 'pulse' }
   };
 
