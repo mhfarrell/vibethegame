@@ -66,6 +66,10 @@ var Game = (function () {
   var comboState = { count: 0, timer: 0, flash: 0, lastGain: 0 };
   var dashState = { active: false, time: 0, cooldown: 0, dx: 0, dy: 0 };
   var art = {};
+  var vibeMode = { active: false, beat: 0, intensity: 0 };
+  var vibeBeatCount = 0;
+  var screenShake = { x: 0, y: 0, intensity: 0, timer: 0 };
+  var bestiaryOpen = false;
 
   // Noise seed for terrain variation
   var noiseSeed = [];
@@ -297,6 +301,42 @@ var Game = (function () {
     } catch (e) { }
   }
 
+  function playVibeBeat() {
+    if (!audioCtx) return;
+    try {
+      var t = audioCtx.currentTime;
+      vibeBeatCount++;
+      // Kick
+      var ko = audioCtx.createOscillator(), kg = audioCtx.createGain();
+      ko.connect(kg); kg.connect(audioCtx.destination);
+      ko.type = 'sine';
+      ko.frequency.setValueAtTime(150, t);
+      ko.frequency.exponentialRampToValueAtTime(40, t + 0.1);
+      kg.gain.setValueAtTime(0.18, t);
+      kg.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+      ko.start(t); ko.stop(t + 0.15);
+      // Hi-hat on offbeats
+      if (vibeBeatCount % 2 === 0) {
+        var ho = audioCtx.createOscillator(), hg = audioCtx.createGain();
+        ho.connect(hg); hg.connect(audioCtx.destination);
+        ho.type = 'square';
+        ho.frequency.setValueAtTime(4000 + Math.random() * 2000, t);
+        hg.gain.setValueAtTime(0.03, t);
+        hg.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+        ho.start(t); ho.stop(t + 0.05);
+      }
+      // Bass synth
+      var bo = audioCtx.createOscillator(), bg = audioCtx.createGain();
+      bo.connect(bg); bg.connect(audioCtx.destination);
+      bo.type = 'sawtooth';
+      var notes = [110, 130.81, 146.83, 164.81];
+      bo.frequency.setValueAtTime(notes[vibeBeatCount % notes.length], t);
+      bg.gain.setValueAtTime(0.05, t);
+      bg.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+      bo.start(t); bo.stop(t + 0.2);
+    } catch (e) {}
+  }
+
   // ====== INITIALIZATION ======
   function init() {
     canvas = document.getElementById('gameCanvas');
@@ -326,6 +366,7 @@ var Game = (function () {
     dom.questsPanel = document.getElementById('quests-panel');
     dom.transitionOverlay = document.getElementById('transition-overlay');
     dom.cookieBanner = document.getElementById('cookie-banner');
+    dom.bestiaryPanel = document.getElementById('bestiary-panel');
 
     minimapCanvas = document.getElementById('minimap');
     minimapCtx = minimapCanvas.getContext('2d');
@@ -422,7 +463,7 @@ var Game = (function () {
     }
     if (key === ' ') {
       e.preventDefault();
-      if (!started || dialogueOpen || menuOpen || inventoryOpen || questsOpen) return;
+      if (!started || dialogueOpen || menuOpen || inventoryOpen || questsOpen || bestiaryOpen) return;
       attemptCatchBug();
     }
     if (key === 'escape') {
@@ -430,6 +471,7 @@ var Game = (function () {
       if (dialogueOpen) { closeDialogue(); return; }
       if (inventoryOpen) { toggleInventory(); return; }
       if (questsOpen) { toggleQuests(); return; }
+      if (bestiaryOpen) { toggleBestiary(); return; }
       if (started) toggleMenu();
     }
     if (key === 'i' && started && !dialogueOpen && !menuOpen) {
@@ -450,6 +492,11 @@ var Game = (function () {
         !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen) {
       e.preventDefault();
       attemptDash();
+    }
+    if (key === 'b' && started && !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen) {
+      e.preventDefault();
+      if (bestiaryOpen) { toggleBestiary(); return; }
+      toggleBestiary();
     }
     if (key === 'p' && started && !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen) {
       e.preventDefault();
@@ -548,6 +595,7 @@ var Game = (function () {
     if (state.petBug === 'duskwing') bugsEarned += 1;
     if (state.petBug === 'moonfire' && isNightTime() && bug.bugType === 'moonfire') bugsEarned += 1;
     if (state.petBug === 'dreamspinner' && comboState.count >= 3) bugsEarned += 1;
+    if (vibeMode.active) bugsEarned = bugsEarned * 2;
 
     state.bugs += bugsEarned;
     state.totalBugsCollected += bugsEarned;
@@ -557,6 +605,20 @@ var Game = (function () {
     }
     state.bestCombo = Math.max(state.bestCombo || 0, comboState.count);
     comboState.lastGain = bugsEarned;
+
+    // Vibe Mode activation at 6+ chain
+    if (comboState.count >= 6 && !vibeMode.active) {
+      vibeMode.active = true;
+      vibeMode.beat = 0;
+      vibeMode.intensity = 0;
+      vibeBeatCount = 0;
+      showNotification('VIBE MODE ACTIVATED');
+      playSound('achieve');
+    }
+
+    // Screen shake on catch
+    screenShake.intensity = comboState.count > 1 ? Math.min(5, comboState.count * 0.8) : 2;
+    screenShake.timer = 0.12;
 
     if (state.bestCombo >= 5 && state.achievements.indexOf('combo_ace') === -1) {
       unlockAchievement('combo_ace');
@@ -644,27 +706,33 @@ var Game = (function () {
       var bugsEarned = registerBugCatch(b, bugDef);
       playSound('collect');
 
-      // Burst particles
-      for (var p = 0; p < 8; p++) {
-        var angle = (p / 8) * Math.PI * 2;
+      // Juicy burst particles - more and varied
+      var burstCount = vibeMode.active ? 16 : (comboState.count > 2 ? 12 : 8);
+      for (var p = 0; p < burstCount; p++) {
+        var angle = (p / burstCount) * Math.PI * 2 + Math.random() * 0.3;
+        var spd = 60 + Math.random() * 60;
         particles.push({
           x: b.x, y: b.y,
-          vx: Math.cos(angle) * 80,
-          vy: Math.sin(angle) * 80 - 30,
-          life: 0.5, maxLife: 0.5,
-          color: bugDef.glow, size: 3
+          vx: Math.cos(angle) * spd,
+          vy: Math.sin(angle) * spd - 40,
+          life: 0.4 + Math.random() * 0.3, maxLife: 0.7,
+          color: p % 2 === 0 ? bugDef.glow : bugDef.color,
+          size: 2 + Math.random() * 3
         });
       }
+      // Value text - bigger for combos
+      var textSize = vibeMode.active ? 14 : (comboState.count > 2 ? 12 : 10);
       particles.push({
         x: b.x, y: b.y - 16, vx: 0, vy: -50,
         life: 1.2, maxLife: 1.2,
-        text: '+' + bugsEarned + ' BUG' + (bugsEarned > 1 ? 'S' : ''), color: bugDef.glow, size: 10
+        text: '+' + bugsEarned + ' BUG' + (bugsEarned > 1 ? 'S' : ''), color: bugDef.glow, size: textSize
       });
       if (comboState.count > 1) {
+        var chainColor = vibeMode.active ? '#ff4d8d' : '#ff9f68';
         particles.push({
-          x: b.x, y: b.y - 30, vx: 0, vy: -35,
+          x: b.x, y: b.y - 32, vx: 0, vy: -35,
           life: 1.1, maxLife: 1.1,
-          text: 'CHAIN x' + comboState.count, color: '#ff9f68', size: 8
+          text: 'CHAIN x' + comboState.count, color: chainColor, size: vibeMode.active ? 11 : 8
         });
       }
 
@@ -682,6 +750,7 @@ var Game = (function () {
 
     if (!caught) {
       playSound('miss');
+      if (vibeMode.active) { vibeMode.active = false; }
       comboState.count = 0;
       comboState.timer = 0;
       comboState.flash = 0;
@@ -714,12 +783,46 @@ var Game = (function () {
       if (comboState.timer > 0) {
         comboState.timer = Math.max(0, comboState.timer - dt);
         if (comboState.timer === 0 && comboState.count > 0) {
+          if (vibeMode.active) { vibeMode.active = false; }
           comboState.count = 0;
           comboState.flash = 0;
           updateHUD();
         }
       }
       if (comboState.flash > 0) comboState.flash = Math.max(0, comboState.flash - dt);
+
+      // Screen shake update
+      if (screenShake.timer > 0) {
+        screenShake.timer -= dt;
+        var shakeAmt = screenShake.intensity * (screenShake.timer / 0.12);
+        screenShake.x = (Math.random() - 0.5) * shakeAmt * 2;
+        screenShake.y = (Math.random() - 0.5) * shakeAmt * 2;
+        if (screenShake.timer <= 0) { screenShake.x = 0; screenShake.y = 0; }
+      }
+
+      // Vibe mode update
+      if (vibeMode.active) {
+        vibeMode.intensity = Math.min(1, vibeMode.intensity + dt * 2);
+        vibeMode.beat += dt;
+        if (vibeMode.beat >= 60 / 140) {
+          vibeMode.beat -= 60 / 140;
+          playVibeBeat();
+          for (var vp = 0; vp < 3; vp++) {
+            var va = Math.random() * Math.PI * 2;
+            var vd = 30 + Math.random() * 50;
+            particles.push({
+              x: state.player.x + TILE / 2 + Math.cos(va) * vd,
+              y: state.player.y + TILE / 2 + Math.sin(va) * vd,
+              vx: Math.cos(va) * 20, vy: -40 + Math.random() * 20,
+              life: 0.6, maxLife: 0.6,
+              color: ['#ff4d8d','#29d7ff','#ffd54f','#66bb6a'][vp % 4],
+              size: 2 + Math.random() * 2
+            });
+          }
+        }
+      } else {
+        vibeMode.intensity = Math.max(0, vibeMode.intensity - dt * 3);
+      }
 
       timeOfDay = (timeOfDay + dt / DAY_DURATION) % 1;
       var wasNight = isNightTime(state.timeOfDay);
@@ -728,7 +831,7 @@ var Game = (function () {
         playSound('day_night');
       }
 
-      if (!dialogueOpen && !inventoryOpen && !menuOpen && !questsOpen) {
+      if (!dialogueOpen && !inventoryOpen && !menuOpen && !questsOpen && !bestiaryOpen) {
         updatePlayer(dt);
         updateBugs(dt);
         checkNPCProximity();
@@ -870,6 +973,18 @@ var Game = (function () {
 
       var bx = px - b.x, by = py - b.y;
       var playerDist = Math.sqrt(bx * bx + by * by);
+
+      // Vibe Mode: bugs dance instead of fleeing
+      if (vibeMode.active) {
+        b.fleeing = false;
+        b.fleeTimer = 0;
+        b.wanderAngle += dt * 6;
+        var nx2 = b.x + Math.cos(b.wanderAngle) * 25 * dt;
+        var ny2 = b.y + Math.sin(b.wanderAngle) * 25 * dt;
+        if (isTileWalkable(nx2, ny2)) { b.x = nx2; b.y = ny2; }
+        b.bobOffset += dt * 8;
+        continue;
+      }
 
       // Flee from player when close
       if (playerDist < BUG_FLEE_DIST && !hasMagnet) {
@@ -1274,26 +1389,15 @@ var Game = (function () {
         state.inventory.push(lastShopItem);
         response = "Sold! One " + itemDef.name + " is yours! " + itemDef.desc + ". You have " + state.bugs + " bugs left.";
         playSound('purchase');
+        var sysMsg = 'Purchased: ' + itemDef.name + '!';
         if (lastShopItem === 'portal_key' && state.unlockedAreas.indexOf('cloud_nine') === -1) {
           state.unlockedAreas.push('cloud_nine');
-          addMessage('npc', response);
-          addMessage('system', 'Purchased: ' + itemDef.name + '! Cloud Nine is now accessible from the Repository!');
-          lastShopItem = null;
-          updateHUD();
-          if (state.inventory.length >= 3 && state.achievements.indexOf('big_spender') === -1) unlockAchievement('big_spender');
-          return;
-        }
-        if (lastShopItem === 'fishing_rod' && state.achievements.indexOf('fisher_start') === -1) {
-          state.achievements.push('fisher_start');
-          addMessage('npc', response);
-          addMessage('system', 'Purchased: ' + itemDef.name + '! Head to the Twilight Grove and press F to fish!');
-          lastShopItem = null;
-          updateHUD();
-          if (state.inventory.length >= 3 && state.achievements.indexOf('big_spender') === -1) unlockAchievement('big_spender');
-          return;
+          sysMsg += ' Cloud Nine is now accessible from the Repository!';
+        } else if (lastShopItem === 'fishing_rod') {
+          sysMsg += ' Head to the Twilight Grove and press F to fish!';
         }
         addMessage('npc', response);
-        addMessage('system', 'Purchased: ' + itemDef.name + '!');
+        addMessage('system', sysMsg);
         lastShopItem = null;
         updateHUD();
         if (state.inventory.length >= 3 && state.achievements.indexOf('big_spender') === -1) unlockAchievement('big_spender');
@@ -1544,13 +1648,16 @@ var Game = (function () {
     if (!started) { renderStartBG(); return; }
 
     if (!areaId || !currentMap) {
-      requestAnimationFrame(render);
       return;
     }
 
     var area = GameData.areas[areaId];
     if (!area) { renderStartBG(); return; }
     var pal = area.palette;
+
+    // Apply screen shake
+    ctx.save();
+    ctx.translate(Math.round(screenShake.x), Math.round(screenShake.y));
 
     var startCol = Math.floor(camera.x / TILE);
     var endCol = Math.ceil((camera.x + canvasW) / TILE);
@@ -1587,6 +1694,11 @@ var Game = (function () {
 
     // Day/night overlay
     drawDayNightOverlay();
+
+    ctx.restore();
+
+    // Vibe mode overlay (not shaken)
+    drawVibeOverlay();
   }
 
   function drawDayNightOverlay() {
@@ -2455,6 +2567,85 @@ var Game = (function () {
     var py = Math.floor(state.player.y / TILE) * 3;
     minimapCtx.fillStyle = '#ff5252';
     minimapCtx.fillRect(px, py, 3, 3);
+  }
+
+  // ====== VIBE OVERLAY ======
+  function drawVibeOverlay() {
+    if (vibeMode.intensity <= 0) return;
+    var a = vibeMode.intensity;
+    var pulse = 0.3 + Math.sin(gameTime * 8) * 0.15;
+    var edge = 60 * a;
+    var grad;
+    // Top - cyan
+    grad = ctx.createLinearGradient(0, 0, 0, edge);
+    grad.addColorStop(0, 'rgba(41,215,255,' + (pulse * a) + ')');
+    grad.addColorStop(1, 'rgba(41,215,255,0)');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, canvasW, edge);
+    // Bottom - magenta
+    grad = ctx.createLinearGradient(0, canvasH, 0, canvasH - edge);
+    grad.addColorStop(0, 'rgba(255,77,141,' + (pulse * a) + ')');
+    grad.addColorStop(1, 'rgba(255,77,141,0)');
+    ctx.fillStyle = grad; ctx.fillRect(0, canvasH - edge, canvasW, edge);
+    // Left - green
+    grad = ctx.createLinearGradient(0, 0, edge, 0);
+    grad.addColorStop(0, 'rgba(102,187,106,' + (pulse * a * 0.7) + ')');
+    grad.addColorStop(1, 'rgba(102,187,106,0)');
+    ctx.fillStyle = grad; ctx.fillRect(0, 0, edge, canvasH);
+    // Right - gold
+    grad = ctx.createLinearGradient(canvasW, 0, canvasW - edge, 0);
+    grad.addColorStop(0, 'rgba(255,213,79,' + (pulse * a * 0.7) + ')');
+    grad.addColorStop(1, 'rgba(255,213,79,0)');
+    ctx.fillStyle = grad; ctx.fillRect(canvasW - edge, 0, edge, canvasH);
+    // Text
+    if (vibeMode.active) {
+      var tp = 0.7 + Math.sin(gameTime * 6) * 0.3;
+      ctx.globalAlpha = tp * a;
+      ctx.font = 'bold 14px "Press Start 2P", monospace';
+      ctx.textAlign = 'center';
+      ctx.shadowColor = '#29d7ff'; ctx.shadowBlur = 20;
+      ctx.fillStyle = '#ff4d8d';
+      ctx.fillText('VIBE MODE', canvasW / 2, 46);
+      ctx.fillStyle = '#29d7ff';
+      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.fillText('x2 BUGS \u2022 CHAIN ' + comboState.count, canvasW / 2, 62);
+      ctx.shadowBlur = 0; ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+    }
+  }
+
+  // ====== BESTIARY ======
+  function toggleBestiary() {
+    bestiaryOpen = !bestiaryOpen;
+    dom.bestiaryPanel.style.display = bestiaryOpen ? 'block' : 'none';
+    if (bestiaryOpen) renderBestiary();
+  }
+
+  function renderBestiary() {
+    var grid = dom.bestiaryPanel.querySelector('.bestiary-grid');
+    var progress = dom.bestiaryPanel.querySelector('.bestiary-progress');
+    grid.innerHTML = '';
+    var allBugs = Object.keys(GameData.bugTypes);
+    var discovered = state.discoveredBugTypes || [];
+    progress.textContent = discovered.length + ' / ' + allBugs.length + ' species discovered';
+    allBugs.forEach(function (bugId) {
+      var def = GameData.bugTypes[bugId];
+      var found = discovered.indexOf(bugId) !== -1;
+      var count = state.bugLog[bugId] || 0;
+      var div = document.createElement('div');
+      div.className = 'bestiary-entry' + (found ? '' : ' undiscovered');
+      var colorBg = found ? def.glow + '33' : '#222';
+      div.innerHTML =
+        '<div class="bestiary-bug-icon" style="background:' + colorBg + '">' +
+          '<span style="font-size:18px;color:' + (found ? def.color : '#333') + '">' + (found ? '\uD83D\uDC1B' : '?') + '</span>' +
+        '</div>' +
+        '<div class="bestiary-info">' +
+          '<div class="bestiary-name">' + (found ? def.name : '???') + '</div>' +
+          '<div class="bestiary-meta">' +
+            (found ? '<span class="rarity-' + def.rarity + '">' + def.rarity + '</span> \u00B7 ' + def.value + ' bug' + (def.value > 1 ? 's' : '') + ' \u00B7 spd ' + def.speed : 'Not yet discovered') +
+          '</div>' +
+        '</div>' +
+        (found ? '<div class="bestiary-count">x' + count + '</div>' : '');
+      grid.appendChild(div);
+    });
   }
 
   // ====== UI ======

@@ -858,6 +858,110 @@ html, body {
   color: var(--text-dim);
 }
 
+/* ---- BESTIARY ---- */
+#bestiary-panel {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(550px, calc(100vw - 40px));
+  max-height: 80vh;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 2px solid var(--hot);
+  border-radius: 12px;
+  padding: 24px;
+  z-index: 25;
+  display: none;
+  animation: fadeIn 0.2s;
+}
+
+#bestiary-panel h2 {
+  font-family: var(--font-pixel);
+  font-size: 14px;
+  color: var(--hot);
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.bestiary-progress {
+  text-align: center;
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+
+.bestiary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.bestiary-entry {
+  background: rgba(255, 159, 104, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: border-color 0.2s;
+}
+
+.bestiary-entry:not(.undiscovered):hover {
+  border-color: var(--hot);
+}
+
+.bestiary-entry.undiscovered {
+  opacity: 0.35;
+}
+
+.bestiary-bug-icon {
+  width: 36px; height: 36px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.bestiary-info { flex: 1; min-width: 0; }
+
+.bestiary-name {
+  font-family: var(--font-pixel);
+  font-size: 8px;
+  color: var(--gold);
+  margin-bottom: 3px;
+}
+
+.bestiary-meta {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 10px;
+  color: var(--text-dim);
+  line-height: 1.4;
+}
+
+.bestiary-count {
+  font-family: var(--font-pixel);
+  font-size: 9px;
+  color: var(--accent2);
+  flex-shrink: 0;
+}
+
+.bestiary-close {
+  text-align: center;
+  margin-top: 12px;
+  font-size: 8px;
+  color: var(--text-dim);
+}
+
+.rarity-common { color: #aaa; }
+.rarity-uncommon { color: #66bb6a; }
+.rarity-rare { color: #4fc3f7; }
+.rarity-epic { color: #ce93d8; }
+.rarity-legendary { color: #ffd54f; }
+
 /* ---- MINIMAP ---- */
 #minimap {
   position: absolute;
