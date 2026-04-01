@@ -1657,27 +1657,30 @@ const Game = (() => {
     let talkedAll = allNpcs.every(function (id) { return state.npcMemory[id] && state.npcMemory[id].talked; });
     if (talkedAll && state.achievements.indexOf('conversationalist') === -1) unlockAchievement('conversationalist');
 
-    // Contextual greeting
-    let greeting = npc.greeting;
-    let visits = state.npcMemory[npcId].visits;
-    if (visits > 1 && visits <= 3) greeting = "Welcome back! " + greeting;
-    else if (visits > 3) greeting = "Good to see you again, friend! What can I do for you?";
-
-    addMessage('npc', greeting);
-
-    // Quest status hints
+    // Check quest state for this NPC first
+    let questGreeting = null;
     Object.keys(GameData.quests).forEach(function(qId) {
       let q = GameData.quests[qId];
-      if (q.giver === npcId) {
+      if (q.giver === npcId && !questGreeting) {
         if (state.activeQuests[qId] && isQuestComplete(qId)) {
-          addMessage('system', q.name + ' complete! Say anything to turn it in.');
+          questGreeting = "You've done it! Want to complete your quest? (" + q.name + ")";
         } else if (state.activeQuests[qId]) {
-          addMessage('system', q.name + ': ' + getQuestProgressText(qId));
+          questGreeting = q.name + ': ' + getQuestProgressText(qId) + '. Keep going!';
         } else if (state.completedQuests.indexOf(qId) === -1) {
-          addMessage('system', 'Quest available - ask about "quest" or "task"');
+          questGreeting = "I have a quest for you! Do you accept? Say 'quest' to hear the details.";
         }
       }
     });
+
+    if (questGreeting) {
+      addMessage('npc', questGreeting);
+    } else {
+      let greeting = npc.greeting;
+      let visits = state.npcMemory[npcId].visits;
+      if (visits > 1 && visits <= 3) greeting = "Welcome back! " + greeting;
+      else if (visits > 3) greeting = "Good to see you again, friend! What can I do for you?";
+      addMessage('npc', greeting);
+    }
 
     playSound('talk');
     setTimeout(function () { dom.dialogueInput.focus(); }, 100);
