@@ -156,34 +156,40 @@ ${buildGameState(gameState)}
     }
   }
 
-  prompt += `\n\nACTION FORMAT: If a game action should happen, put it on the VERY LAST line of your response, formatted exactly as: ACTIONS:[{"type":"...","id":"..."}]
-Only include this line when an action is needed. Most responses need no actions.`;
+  prompt += `\n\nACTIONS: You may ONLY use these exact action types — do NOT invent new ones:
+- quest_start — start a quest
+- quest_complete — complete a quest
+- shop_buy — buy an item
+- adopt_pet — adopt a companion
+If needed, append to end of your message: ACTIONS:[{"type":"quest_start","id":"first_catch"}]
+Most messages need NO actions. Only use them for quest/shop/pet events. Never make up action types.`;
 
   return prompt;
 }
+
+const VALID_ACTIONS = ['quest_start', 'quest_complete', 'shop_buy', 'adopt_pet', 'unlock_area'];
 
 function parseActions(text) {
   if (!text) return { text: '', actions: [] };
 
   let actions = [];
-  let lines = text.split('\n');
-  let cleanLines = [];
 
-  for (let line of lines) {
-    let trimmed = line.trim();
-    if (trimmed.startsWith('ACTIONS:')) {
-      try {
-        let json = trimmed.slice(8).trim();
-        let parsed = JSON.parse(json);
-        if (Array.isArray(parsed)) actions = parsed;
-        else if (parsed.type) actions = [parsed];
-      } catch (e) { /* ignore malformed actions */ }
-    } else {
-      cleanLines.push(line);
-    }
-  }
+  // Strip ACTIONS from anywhere in the text (inline or on its own line)
+  let cleaned = text.replace(/\s*ACTIONS:\s*(\[[\s\S]*?\])\s*/g, function(match, jsonStr) {
+    try {
+      let parsed = JSON.parse(jsonStr);
+      if (Array.isArray(parsed)) {
+        for (let a of parsed) {
+          if (a && a.type && VALID_ACTIONS.includes(a.type)) actions.push(a);
+        }
+      } else if (parsed && parsed.type && VALID_ACTIONS.includes(parsed.type)) {
+        actions.push(parsed);
+      }
+    } catch (e) { /* ignore malformed */ }
+    return '';
+  });
 
-  return { text: cleanLines.join('\n').trim(), actions };
+  return { text: cleaned.trim(), actions };
 }
 
 export async function onRequestPost(context) {
