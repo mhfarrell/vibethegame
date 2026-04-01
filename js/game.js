@@ -59,6 +59,8 @@ const Game = (() => {
   let gameTime = 0;
   let transitioning = false;
   let portalCooldown = 0;
+  let npcChatHistory = {};
+  let aiDialogueInFlight = false;
   let walkFrame = 0;
   let walkTimer = 0;
   let started = false;
@@ -608,6 +610,13 @@ const Game = (() => {
 
     document.getElementById('dialogue-send').addEventListener('click', sendDialogue);
     document.getElementById('dialogue-close').addEventListener('click', closeDialogue);
+
+    // Tappable interact prompt for mobile
+    dom.interactPrompt.addEventListener('click', function () {
+      if (nearestNPC && !dialogueOpen) openDialogue(nearestNPC);
+      else if (isAtFishingSpot()) attemptFishing();
+      else if (nearestBug) attemptCatchBug();
+    });
     dom.inventoryPanel.querySelector('.inv-close').addEventListener('click', toggleInventory);
     dom.questsPanel.querySelector('.quests-close').addEventListener('click', toggleQuests);
     dom.bestiaryPanel.querySelector('.bestiary-close').addEventListener('click', toggleBestiary);
@@ -1777,13 +1786,139 @@ const Game = (() => {
     return '';
   }
 
-  function sendDialogue() {
+  function buildGameContext() {
+    let questProgress = {};
+    let questReady = {};
+    for (let qId in state.activeQuests) {
+      questProgress[qId] = getQuestProgressText(qId);
+      questReady[qId] = isQuestComplete(qId);
+    }
+    return {
+      bugs: state.bugs,
+      inventory: state.inventory,
+      activeQuests: state.activeQuests,
+      questProgress: questProgress,
+      questReady: questReady,
+      completedQuests: state.completedQuests,
+      area: areaId,
+      unlockedAreas: state.unlockedAreas,
+      totalBugsCaught: getTotalBugCatches(state),
+      bestCombo: state.bestCombo || 0,
+      totalFishCaught: state.totalFishCaught || 0,
+      petBug: state.petBug || null,
+      bugLog: state.bugLog || {}
+    };
+  }
+
+  function processAIActions(actions) {
+    for (let i = 0; i < actions.length; i++) {
+      let act = actions[i];
+      if (!act || !act.type) continue;
+
+      if (act.type === 'quest_start' && act.id) {
+        let q = GameData.quests[act.id];
+        if (q && !state.activeQuests[act.id] && state.completedQuests.indexOf(act.id) === -1) {
+          state.activeQuests[act.id] = { started: Date.now(), readyNotified: false };
+          addMessage('system', 'New quest: ' + q.name + ' — ' + q.desc);
+          playSound('quest');
+          updateHUD();
+        }
+      }
+
+      if (act.type === 'quest_complete' && act.id) {
+        let q = GameData.quests[act.id];
+        let npc = GameData.npcDefs[currentNPCId];
+        if (q && state.activeQuests[act.id]) {
+          playSound('quest');
+          finishQuest(act.id, npc);
+        }
+      }
+
+      if (act.type === 'shop_buy' && act.id) {
+        let itemDef = GameData.items[act.id];
+        if (itemDef && state.inventory.indexOf(act.id) === -1 && state.bugs >= itemDef.price) {
+          state.bugs -= itemDef.price;
+          state.inventory.push(act.id);
+          playSound('purchase');
+          addMessage('system', 'Purchased: ' + itemDef.name + '!');
+          if (act.id === 'portal_key' && state.unlockedAreas.indexOf('cloud_nine') === -1) {
+            state.unlockedAreas.push('cloud_nine');
+            addMessage('system', 'Cloud Nine is now accessible from the Repository!');
+          }
+          updateHUD();
+          if (state.inventory.length >= 3 && state.achievements.indexOf('big_spender') === -1) unlockAchievement('big_spender');
+        }
+      }
+
+      if (act.type === 'adopt_pet' && act.id) {
+        adoptPet(act.id);
+      }
+
+      if (act.type === 'unlock_area' && act.id) {
+        if (state.unlockedAreas.indexOf(act.id) === -1) {
+          state.unlockedAreas.push(act.id);
+          addMessage('system', GameData.areas[act.id].name + ' is now accessible!');
+          updateHUD();
+        }
+      }
+    }
+  }
+
+  async function sendDialogue() {
     let input = dom.dialogueInput.value.trim();
-    if (!input || !currentNPCId) return;
+    if (!input || !currentNPCId || aiDialogueInFlight) return;
     dom.dialogueInput.value = '';
     addMessage('player', input);
     playSound('talk');
 
+    // Initialise chat history for this NPC
+    if (!npcChatHistory[currentNPCId]) npcChatHistory[currentNPCId] = [];
+    npcChatHistory[currentNPCId].push({ role: 'user', content: input });
+
+    // Show typing indicator
+    aiDialogueInFlight = true;
+    dom.dialogueInput.disabled = true;
+    let typingMsg = document.createElement('div');
+    typingMsg.className = 'msg msg-npc msg-typing';
+    typingMsg.textContent = '...';
+    dom.dialogueMessages.appendChild(typingMsg);
+    dom.dialogueMessages.scrollTop = dom.dialogueMessages.scrollHeight;
+
+    try {
+      let res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          npcId: currentNPCId,
+          message: input,
+          history: npcChatHistory[currentNPCId].slice(-12),
+          gameState: buildGameContext()
+        })
+      });
+
+      if (!res.ok) throw new Error('AI unavailable');
+      let data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      typingMsg.remove();
+      addMessage('npc', data.message);
+      npcChatHistory[currentNPCId].push({ role: 'assistant', content: data.message });
+
+      if (data.actions && data.actions.length > 0) {
+        processAIActions(data.actions);
+      }
+    } catch (e) {
+      typingMsg.remove();
+      // Fallback to keyword matching
+      sendDialogueFallback(input);
+    }
+
+    aiDialogueInFlight = false;
+    dom.dialogueInput.disabled = false;
+    if (dialogueOpen) dom.dialogueInput.focus();
+  }
+
+  function sendDialogueFallback(input) {
     let npc = GameData.npcDefs[currentNPCId];
     let lower = input.toLowerCase();
     let response = null;
@@ -1802,57 +1937,7 @@ const Game = (() => {
       return;
     }
 
-    // 1. Check quest answer (riddle)
-    for (let t = 0; t < npc.topics.length; t++) {
-      let topic = npc.topics[t];
-      if (topic.questAnswer && state.activeQuests[topic.questAnswer] && !isQuestComplete(topic.questAnswer)) {
-        if (matchScore(input, topic.kw) >= 8) {
-          response = npc.questResponses[topic.questAnswer + '_complete'] || topic.text;
-          playSound('quest');
-          finishQuest(topic.questAnswer, npc, response);
-          return;
-        }
-      }
-    }
-
-    // 2. Shop confirmation
-    if (lastShopItem && lower.match(/\b(yes|yeah|sure|ok|buy|purchase|deal|take|want|please|yep|yup|definitely|absolutely)\b/)) {
-      let itemDef = GameData.items[lastShopItem];
-      if (state.inventory.indexOf(lastShopItem) !== -1) {
-        response = "You already own the " + itemDef.name + "!";
-      } else if (state.bugs >= itemDef.price) {
-        state.bugs -= itemDef.price;
-        state.inventory.push(lastShopItem);
-        response = "Sold! One " + itemDef.name + " is yours! " + itemDef.desc + ". You have " + state.bugs + " bugs left.";
-        playSound('purchase');
-        let sysMsg = 'Purchased: ' + itemDef.name + '!';
-        if (lastShopItem === 'portal_key' && state.unlockedAreas.indexOf('cloud_nine') === -1) {
-          state.unlockedAreas.push('cloud_nine');
-          sysMsg += ' Cloud Nine is now accessible from the Repository!';
-        } else if (lastShopItem === 'fishing_rod') {
-          sysMsg += ' Head to the Twilight Grove and press F to fish!';
-        }
-        addMessage('npc', response);
-        addMessage('system', sysMsg);
-        lastShopItem = null;
-        updateHUD();
-        if (state.inventory.length >= 3 && state.achievements.indexOf('big_spender') === -1) unlockAchievement('big_spender');
-        return;
-      } else {
-        response = "Not enough bugs! You need " + itemDef.price + " but have " + state.bugs + ". Go catch some more!";
-      }
-      lastShopItem = null;
-      addMessage('npc', response);
-      return;
-    }
-
-    if (lower.match(/\b(no|nah|nope|nevermind|cancel|nvm)\b/) && lastShopItem) {
-      lastShopItem = null;
-      addMessage('npc', "No worries! Anything else catch your eye?");
-      return;
-    }
-
-    // 3. Check quest turn-in
+    // Quest turn-in
     for (let qId in state.activeQuests) {
       if (isQuestComplete(qId)) {
         let quest = GameData.quests[qId];
@@ -1865,7 +1950,7 @@ const Game = (() => {
       }
     }
 
-    // 4. Topic matching with scoring
+    // Topic matching
     let bestScore = 0;
     let bestTopic = null;
     for (let t = 0; t < npc.topics.length; t++) {
@@ -1877,8 +1962,6 @@ const Game = (() => {
 
     if (bestTopic && bestScore >= 3) {
       response = bestTopic.text;
-
-      // Quest trigger
       if (bestTopic.quest) {
         let qId = bestTopic.quest;
         if (state.completedQuests.indexOf(qId) !== -1) {
@@ -1892,8 +1975,6 @@ const Game = (() => {
           return;
         }
       }
-
-      // Shop item
       if (bestTopic.shopItem) {
         lastShopItem = bestTopic.shopItem;
         if (state.inventory.indexOf(lastShopItem) !== -1) {
@@ -1905,11 +1986,9 @@ const Game = (() => {
       }
     }
 
-    // 5. Context-aware fallback responses
     if (!response) {
       response = getSmartFallback(npc, input, lower);
     }
-
     addMessage('npc', response);
   }
 
