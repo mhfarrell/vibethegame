@@ -2,7 +2,7 @@
  * Vibe The Game - Game Data (Enhanced Edition)
  * Refactored with ES6+
  */
-const GameData = (() => {
+export const GameData = (() => {
 
   // Tile type constants
   const T = {
@@ -832,7 +832,7 @@ const GameData = (() => {
   let quests = {
     first_catch: {
       name: 'First Catch',
-      desc: 'Collect 5 bugs',
+      desc: 'Catch 5 bugs',
       giver: 'prof_semicolon',
       type: 'collect_bugs',
       target: 5,
@@ -849,7 +849,7 @@ const GameData = (() => {
     },
     bug_census: {
       name: 'Bug Census',
-      desc: 'Collect 25 bugs total',
+      desc: 'Catch 25 bugs total',
       giver: 'bug_hunter_beatrix',
       type: 'collect_bugs',
       target: 25,
@@ -873,7 +873,7 @@ const GameData = (() => {
     },
     great_debug: {
       name: 'The Great Debug',
-      desc: 'Collect 100 bugs total',
+      desc: 'Catch 100 bugs total',
       giver: 'cloudkeeper_cirrus',
       type: 'collect_bugs',
       target: 100,
@@ -919,11 +919,11 @@ const GameData = (() => {
   // ====== ACHIEVEMENTS ======
 
   let achievementDefs = [
-    { id: 'first_bug',          name: 'First Bug',           desc: 'Collect your first bug' },
+    { id: 'first_bug',          name: 'First Bug',           desc: 'Catch your first bug' },
     { id: 'conversationalist',  name: 'Conversationalist',   desc: 'Talk to all NPCs' },
     { id: 'explorer',           name: 'Explorer',            desc: 'Visit all areas' },
     { id: 'big_spender',        name: 'Big Spender',         desc: 'Buy 3 items' },
-    { id: 'bug_hoarder',        name: 'Bug Hoarder',         desc: 'Collect 50 bugs total' },
+    { id: 'bug_hoarder',        name: 'Bug Hoarder',         desc: 'Catch 50 bugs total' },
     { id: 'legend',             name: 'Vibeverse Legend',     desc: 'Complete the Great Debug' },
     { id: 'night_owl',          name: 'Night Owl',           desc: 'Visit the Twilight Grove' },
     { id: 'combo_ace',          name: 'Combo Ace',           desc: 'Reach a 5-bug chain' },

@@ -1,20 +1,24 @@
 /**
- * Vibe The Game - Save System v2
- * Uses IndexedDB for robust persistent storage with cookie fallback
+ * Vibe The Game - Save System v3
+ * Uses IndexedDB first, with local browser storage fallbacks.
  */
-const SaveSystem = {
+export const SaveSystem = {
   DB_NAME: 'VibeTheGame',
   DB_VERSION: 1,
   STORE_NAME: 'gameSave',
+  SAVE_ID: 'gameState',
   COOKIE_NAME: 'vibeGameSave',
   CONSENT_COOKIE: 'vibeCookieConsent',
   COOKIE_DAYS: 365,
   db: null,
+  readyPromise: null,
 
-  async init() {
-    return new Promise((resolve, reject) => {
+  init() {
+    if (this.readyPromise) return this.readyPromise;
+
+    this.readyPromise = new Promise((resolve) => {
       if (!window.indexedDB) {
-        console.warn('IndexedDB not supported, falling back to cookies');
+        console.warn('IndexedDB not supported, falling back to browser storage');
         resolve(false);
         return;
       }
@@ -28,6 +32,11 @@ const SaveSystem = {
 
       request.onsuccess = () => {
         this.db = request.result;
+        this.db.onversionchange = () => {
+          this.db.close();
+          this.db = null;
+          this.readyPromise = null;
+        };
         resolve(true);
       };
 
@@ -38,6 +47,12 @@ const SaveSystem = {
         }
       };
     });
+
+    return this.readyPromise;
+  },
+
+  async ensureReady() {
+    return this.init();
   },
 
   setCookie(name, value, days) {
@@ -47,12 +62,19 @@ const SaveSystem = {
   },
 
   getCookie(name) {
-    const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
-    return match ? decodeURIComponent(match[2]) : null;
+    const cookies = document.cookie ? document.cookie.split('; ') : [];
+    for (let i = 0; i < cookies.length; i++) {
+      const separator = cookies[i].indexOf('=');
+      const cookieName = separator === -1 ? cookies[i] : cookies[i].slice(0, separator);
+      if (cookieName === name) {
+        return decodeURIComponent(separator === -1 ? '' : cookies[i].slice(separator + 1));
+      }
+    }
+    return null;
   },
 
   deleteCookie(name) {
-    document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+    document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax';
   },
 
   hasConsent() {
@@ -65,92 +87,124 @@ const SaveSystem = {
 
   async save(state) {
     const data = JSON.stringify(state);
-    
-    // Try IndexedDB first
+    await this.ensureReady();
+
     if (this.db) {
       try {
         const tx = this.db.transaction(this.STORE_NAME, 'readwrite');
         const store = tx.objectStore(this.STORE_NAME);
-        store.put({ id: 'gameState', data: data, timestamp: Date.now() });
-        return new Promise((resolve) => {
-          tx.oncomplete = () => resolve(true);
-          tx.onerror = () => resolve(false);
-        });
-      } catch (e) {
-        console.warn('IndexedDB save failed:', e);
+        store.put({ id: this.SAVE_ID, data: data, timestamp: Date.now() });
+        return await this.waitForTransaction(tx);
+      } catch (error) {
+        console.warn('IndexedDB save failed:', error);
       }
     }
-    
-    // Fallback to cookies + localStorage
+
+    return this.saveFallback(data);
+  },
+
+  saveFallback(data) {
     this.setCookie(this.COOKIE_NAME, data, this.COOKIE_DAYS);
-    try { localStorage.setItem(this.COOKIE_NAME, data); } catch (e) { }
+    try {
+      localStorage.setItem(this.COOKIE_NAME, data);
+    } catch (error) {
+      console.warn('localStorage save failed:', error);
+    }
     return true;
   },
 
   async load() {
-    // Try IndexedDB first
+    await this.ensureReady();
+
     if (this.db) {
       try {
         const tx = this.db.transaction(this.STORE_NAME, 'readonly');
         const store = tx.objectStore(this.STORE_NAME);
-        const request = store.get('gameState');
-        
-        return new Promise((resolve) => {
+        const request = store.get(this.SAVE_ID);
+
+        return await new Promise((resolve) => {
           request.onsuccess = () => {
-            if (request.result) {
-              try {
-                const parsed = JSON.parse(request.result.data);
-                resolve(this.normalizeState(parsed));
-              } catch (e) {
-                resolve(this.loadFallback());
-              }
-            } else {
+            if (!request.result) {
+              resolve(this.loadFallback());
+              return;
+            }
+
+            try {
+              resolve(this.normalizeState(JSON.parse(request.result.data)));
+            } catch (error) {
+              console.warn('IndexedDB data was invalid, using fallback storage:', error);
               resolve(this.loadFallback());
             }
           };
           request.onerror = () => resolve(this.loadFallback());
         });
-      } catch (e) {
-        console.warn('IndexedDB load failed:', e);
+      } catch (error) {
+        console.warn('IndexedDB load failed:', error);
       }
     }
-    
+
     return this.loadFallback();
   },
 
   loadFallback() {
     let data = this.getCookie(this.COOKIE_NAME);
     if (!data) {
-      try { data = localStorage.getItem(this.COOKIE_NAME); } catch (e) { }
+      try {
+        data = localStorage.getItem(this.COOKIE_NAME);
+      } catch (error) {
+        console.warn('localStorage load failed:', error);
+      }
     }
     if (!data) return null;
-    try { return this.normalizeState(JSON.parse(data)); } catch (e) { return null; }
+
+    try {
+      return this.normalizeState(JSON.parse(data));
+    } catch (error) {
+      console.warn('Fallback save data was invalid:', error);
+      return null;
+    }
   },
 
   async clear() {
-    // Clear IndexedDB
+    await this.ensureReady();
+
     if (this.db) {
       try {
         const tx = this.db.transaction(this.STORE_NAME, 'readwrite');
-        const store = tx.objectStore(this.STORE_NAME);
-        store.delete('gameState');
-      } catch (e) {
-        console.warn('IndexedDB clear failed:', e);
+        tx.objectStore(this.STORE_NAME).delete(this.SAVE_ID);
+        await this.waitForTransaction(tx);
+      } catch (error) {
+        console.warn('IndexedDB clear failed:', error);
       }
     }
-    
-    // Clear cookies and localStorage
+
     this.deleteCookie(this.COOKIE_NAME);
-    try { localStorage.removeItem(this.COOKIE_NAME); } catch (e) { }
+    try {
+      localStorage.removeItem(this.COOKIE_NAME);
+    } catch (error) {
+      console.warn('localStorage clear failed:', error);
+    }
+  },
+
+  waitForTransaction(tx) {
+    return new Promise((resolve) => {
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+      tx.onabort = () => resolve(false);
+    });
   },
 
   normalizeState(state) {
     const defaults = this.getDefaultState();
     if (!state || typeof state !== 'object') return defaults;
-    return {
+
+    const normalized = {
       player: Object.assign({}, defaults.player, state.player || {}),
       bugs: typeof state.bugs === 'number' ? state.bugs : defaults.bugs,
       totalBugsCollected: typeof state.totalBugsCollected === 'number' ? state.totalBugsCollected : defaults.totalBugsCollected,
+      totalBugsCaught: typeof state.totalBugsCaught === 'number'
+        ? state.totalBugsCaught
+        : (typeof state.totalBugsCollected === 'number' ? state.totalBugsCollected : defaults.totalBugsCaught),
       goldenBugs: typeof state.goldenBugs === 'number' ? state.goldenBugs : defaults.goldenBugs,
       inventory: Array.isArray(state.inventory) ? state.inventory.slice() : defaults.inventory.slice(),
       activeQuests: state.activeQuests && typeof state.activeQuests === 'object' ? state.activeQuests : {},
@@ -159,7 +213,7 @@ const SaveSystem = {
       npcMemory: state.npcMemory && typeof state.npcMemory === 'object' ? state.npcMemory : {},
       achievements: Array.isArray(state.achievements) ? state.achievements.slice() : [],
       playTime: typeof state.playTime === 'number' ? state.playTime : defaults.playTime,
-      version: 4,
+      version: 5,
       timeOfDay: typeof state.timeOfDay === 'number' ? state.timeOfDay : defaults.timeOfDay,
       petBug: typeof state.petBug === 'string' ? state.petBug : defaults.petBug,
       fishCaught: Array.isArray(state.fishCaught) ? state.fishCaught.slice() : [],
@@ -171,6 +225,8 @@ const SaveSystem = {
       lastObjectiveHint: typeof state.lastObjectiveHint === 'string' ? state.lastObjectiveHint : defaults.lastObjectiveHint,
       greatDebugTriggered: !!state.greatDebugTriggered
     };
+
+    return normalized;
   },
 
   getDefaultState() {
@@ -178,6 +234,7 @@ const SaveSystem = {
       player: { x: 448, y: 480, area: 'spawn_village', dir: 0 },
       bugs: 0,
       totalBugsCollected: 0,
+      totalBugsCaught: 0,
       goldenBugs: 0,
       inventory: [],
       activeQuests: {},
@@ -186,7 +243,7 @@ const SaveSystem = {
       npcMemory: {},
       achievements: [],
       playTime: 0,
-      version: 4,
+      version: 5,
       timeOfDay: 0,
       petBug: null,
       fishCaught: [],
@@ -201,7 +258,6 @@ const SaveSystem = {
   }
 };
 
-// Initialize on load
 if (typeof window !== 'undefined') {
-  SaveSystem.init();
+  void SaveSystem.init();
 }

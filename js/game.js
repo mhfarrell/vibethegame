@@ -1,3 +1,6 @@
+import { GameData } from './data.js';
+import { SaveSystem } from './save.js';
+
 /**
  * Vibe The Game - Game Engine v3
  * Refactored with ES6+, improved mechanics, and error handling
@@ -31,6 +34,7 @@ const Game = (() => {
   const SIGNAL_LURE_DURATION = 10;
   const SIGNAL_LURE_COOLDOWN = 18;
   const SIGNAL_LURE_RANGE = 170;
+  const CANVAS_FONT_STACK = '"Consolas", "Lucida Console", "Courier New", monospace';
 
   // ====== STATE ======
   let canvas, ctx, minimapCanvas, minimapCtx;
@@ -90,6 +94,43 @@ const Game = (() => {
 
   // ====== DOM REFS ======
   const dom = {};
+  let savePreviewPromise = null;
+
+  function getSavePreview() {
+    if (!savePreviewPromise) {
+      savePreviewPromise = SaveSystem.load().catch(function (error) {
+        console.warn('Unable to preload save preview:', error);
+        return null;
+      });
+    }
+    return savePreviewPromise;
+  }
+
+  function getTotalBugCatches(sourceState) {
+    if (!sourceState) return 0;
+    if (typeof sourceState.totalBugsCaught === 'number') return sourceState.totalBugsCaught;
+    return typeof sourceState.totalBugsCollected === 'number' ? sourceState.totalBugsCollected : 0;
+  }
+
+  function setVisibility(element, visible, displayValue) {
+    if (!element) return;
+    element.hidden = !visible;
+    element.style.display = visible ? (displayValue || 'block') : 'none';
+    element.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  }
+
+  function renderContinueInfo(savedState) {
+    const continueInfo = document.querySelector('.continue-info');
+    if (!continueInfo) return;
+    if (!savedState) {
+      setVisibility(continueInfo, false);
+      continueInfo.textContent = '';
+      return;
+    }
+
+    continueInfo.textContent = 'Continue from save (' + getTotalBugCatches(savedState) + ' bugs caught)';
+    setVisibility(continueInfo, true, 'block');
+  }
 
   function loadImage(src) {
     const img = new Image();
@@ -521,7 +562,7 @@ const Game = (() => {
   }
 
   // ====== INITIALIZATION ======
-  function init() {
+  async function init() {
     canvas = document.getElementById('gameCanvas');
     ctx = canvas.getContext('2d');
     ctx.imageSmoothingEnabled = false;
@@ -548,6 +589,7 @@ const Game = (() => {
     dom.notification = document.getElementById('notification');
     dom.achievePopup = document.getElementById('achievement-popup');
     dom.startScreen = document.getElementById('start-screen');
+    dom.startButton = document.querySelector('.start-btn');
     dom.menuPanel = document.getElementById('menu-panel');
     dom.questsPanel = document.getElementById('quests-panel');
     dom.transitionOverlay = document.getElementById('transition-overlay');
@@ -564,6 +606,12 @@ const Game = (() => {
     window.addEventListener('keyup', onKeyUp);
 
     document.getElementById('dialogue-send').addEventListener('click', sendDialogue);
+    document.getElementById('dialogue-close').addEventListener('click', closeDialogue);
+    dom.inventoryPanel.querySelector('.inv-close').addEventListener('click', toggleInventory);
+    dom.questsPanel.querySelector('.quests-close').addEventListener('click', toggleQuests);
+    dom.bestiaryPanel.querySelector('.bestiary-close').addEventListener('click', toggleBestiary);
+    dom.scannerPanel.querySelector('.scanner-close').addEventListener('click', toggleScanner);
+    dom.menuPanel.querySelector('.menu-close').addEventListener('click', toggleMenu);
     dom.dialogueInput.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); sendDialogue(); }
       e.stopPropagation();
@@ -573,20 +621,25 @@ const Game = (() => {
     setupMobileControls();
 
     cookiesAccepted = SaveSystem.hasConsent();
-    if (!cookiesAccepted) dom.cookieBanner.style.display = 'block';
+    setVisibility(dom.cookieBanner, !cookiesAccepted, 'block');
 
     document.getElementById('cookie-accept').addEventListener('click', function () {
       cookiesAccepted = true;
       SaveSystem.giveConsent();
-      dom.cookieBanner.style.display = 'none';
+      setVisibility(dom.cookieBanner, false);
+      if (state) {
+        void saveGame();
+        showNotification('Local saving enabled.');
+      }
     });
     document.getElementById('cookie-decline').addEventListener('click', function () {
-      dom.cookieBanner.style.display = 'none';
+      setVisibility(dom.cookieBanner, false);
     });
 
     document.getElementById('menu-resume').addEventListener('click', toggleMenu);
-    document.getElementById('menu-save').addEventListener('click', function () {
-      saveGame(); showNotification('Game Saved!');
+    document.getElementById('menu-save').addEventListener('click', async function () {
+      const didSave = await saveGame();
+      showNotification(didSave ? 'Game Saved!' : 'Enable local saving first to store progress.');
     });
     document.getElementById('menu-quests').addEventListener('click', function () {
       toggleMenu(); toggleQuests();
@@ -594,24 +647,21 @@ const Game = (() => {
     document.getElementById('menu-scanner').addEventListener('click', function () {
       toggleMenu(); toggleScanner();
     });
-    document.getElementById('menu-delete').addEventListener('click', function () {
-      if (confirm('Delete all save data? This cannot be undone!')) {
-        SaveSystem.clear();
+    document.getElementById('menu-delete').addEventListener('click', async function () {
+      if (confirm('Delete all local save data? This cannot be undone!')) {
+        await SaveSystem.clear();
+        savePreviewPromise = Promise.resolve(null);
         state = SaveSystem.getDefaultState();
         loadArea(state.player.area);
         toggleMenu();
         showNotification('Save data deleted');
+        renderContinueInfo(null);
       }
     });
 
-    const saved = await SaveSystem.load();
-    if (saved) {
-      const ci = document.querySelector('.continue-info');
-      ci.style.display = 'block';
-      ci.textContent = 'Continue from save (' + saved.totalBugsCollected + ' bugs collected)';
-    }
+    renderContinueInfo(await getSavePreview());
 
-    document.querySelector('.start-btn').addEventListener('click', startGame);
+    dom.startButton.addEventListener('click', startGame);
     requestAnimationFrame(gameLoop);
   }
 
@@ -619,9 +669,9 @@ const Game = (() => {
     if (started) return;
     started = true;
     initAudio();
-    dom.startScreen.style.display = 'none';
-    dom.hud.style.display = 'flex';
-    state = await SaveSystem.load() || SaveSystem.getDefaultState();
+    setVisibility(dom.startScreen, false);
+    setVisibility(dom.hud, true, 'flex');
+    state = await getSavePreview() || SaveSystem.getDefaultState();
     timeOfDay = typeof state.timeOfDay === 'number' ? state.timeOfDay : 0;
     resetPulseStormCountdown(true);
     signalLure.active = false;
@@ -721,18 +771,40 @@ const Game = (() => {
 
   function onKeyUp(e) { keys[e.key.toLowerCase()] = false; }
 
+  function bindPointerButton(button, onPress, onRelease) {
+    if (!button) return;
+
+    button.addEventListener('pointerdown', function (event) {
+      event.preventDefault();
+      button.setPointerCapture(event.pointerId);
+      if (onPress) onPress(event);
+    });
+
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (eventName) {
+      button.addEventListener(eventName, function (event) {
+        event.preventDefault();
+        if (button.hasPointerCapture && button.hasPointerCapture(event.pointerId)) {
+          button.releasePointerCapture(event.pointerId);
+        }
+        if (onRelease) onRelease(event);
+      });
+    });
+  }
+
   function setupMobileControls() {
     let dirs = { up: 'w', down: 's', left: 'a', right: 'd' };
     Object.keys(dirs).forEach(function (dir) {
       let btn = document.querySelector('.mobile-dpad .' + dir);
       if (!btn) return;
-      btn.addEventListener('touchstart', function (e) { e.preventDefault(); keys[dirs[dir]] = true; });
-      btn.addEventListener('touchend', function (e) { e.preventDefault(); keys[dirs[dir]] = false; });
+      bindPointerButton(btn, function () {
+        keys[dirs[dir]] = true;
+      }, function () {
+        keys[dirs[dir]] = false;
+      });
     });
-    let actionBtn = document.querySelector('.mobile-action button');
+    let actionBtn = document.querySelector('.mobile-action .act');
     if (actionBtn) {
-      actionBtn.addEventListener('touchstart', function (e) {
-        e.preventDefault();
+      bindPointerButton(actionBtn, function () {
         if (dialogueOpen) return;
         if (nearestNPC) openDialogue(nearestNPC);
         else attemptCatchBug();
@@ -740,15 +812,13 @@ const Game = (() => {
     }
     let lureBtn = document.querySelector('.mobile-action .lure');
     if (lureBtn) {
-      lureBtn.addEventListener('touchstart', function (e) {
-        e.preventDefault();
+      bindPointerButton(lureBtn, function () {
         if (!dialogueOpen && !menuOpen) deploySignalLure();
       });
     }
     let scanBtn = document.querySelector('.mobile-action .scan');
     if (scanBtn) {
-      scanBtn.addEventListener('touchstart', function (e) {
-        e.preventDefault();
+      bindPointerButton(scanBtn, function () {
         if (!dialogueOpen && !menuOpen) toggleScanner();
       });
     }
@@ -761,6 +831,7 @@ const Game = (() => {
     areaId = id;
     currentMap = area.map;
     bugs = [];
+    bugTimer = 0;
     fishingState.active = false;
     fishingState.waiting = false;
     signalLure.active = false;
@@ -833,6 +904,7 @@ const Game = (() => {
 
     state.bugs += bugsEarned;
     state.totalBugsCollected += bugsEarned;
+    state.totalBugsCaught = getTotalBugCatches(state) + 1;
 
     // Golden bug chance (10% on catch, 25% in Vibe Mode)
     let goldenChance = vibeMode.active ? 0.25 : 0.1;
@@ -1000,10 +1072,10 @@ const Game = (() => {
 
       updateHUD();
 
-      if (state.totalBugsCollected === 1 && state.achievements.indexOf('first_bug') === -1) {
+      if (getTotalBugCatches(state) === 1 && state.achievements.indexOf('first_bug') === -1) {
         unlockAchievement('first_bug');
       }
-      if (state.totalBugsCollected >= 50 && state.achievements.indexOf('bug_hoarder') === -1) {
+      if (getTotalBugCatches(state) >= 50 && state.achievements.indexOf('bug_hoarder') === -1) {
         unlockAchievement('bug_hoarder');
       }
       checkQuestProgress();
@@ -1095,10 +1167,10 @@ const Game = (() => {
       updatePulseStorm(dt);
       updateSignalLure(dt);
 
+      let wasNight = isNightTime(timeOfDay);
       timeOfDay = (timeOfDay + dt / DAY_DURATION) % 1;
-      let wasNight = isNightTime();
       state.timeOfDay = timeOfDay;
-      if (wasNight !== isNightTime()) {
+      if (wasNight !== isNightTime(timeOfDay)) {
         playSound('day_night');
       }
 
@@ -1129,11 +1201,11 @@ const Game = (() => {
 
       if (notifTimer > 0) {
         notifTimer -= dt;
-        if (notifTimer <= 0) dom.notification.style.display = 'none';
+        if (notifTimer <= 0) setVisibility(dom.notification, false);
       }
       if (achieveTimer > 0) {
         achieveTimer -= dt;
-        if (achieveTimer <= 0) dom.achievePopup.style.display = 'none';
+        if (achieveTimer <= 0) setVisibility(dom.achievePopup, false);
       }
       updateHUD();
       if (scannerOpen) {
@@ -1547,7 +1619,7 @@ const Game = (() => {
     lastShopItem = null;
     let npc = GameData.npcDefs[npcId];
 
-    dom.dialogueBox.style.display = 'block';
+    setVisibility(dom.dialogueBox, true, 'block');
     dom.npcName.textContent = npc.name;
     dom.npcPortrait.style.borderColor = npc.color;
     dom.npcPortrait.style.background = npc.color + '22';
@@ -1577,7 +1649,7 @@ const Game = (() => {
   function closeDialogue() {
     dialogueOpen = false;
     currentNPCId = null;
-    dom.dialogueBox.style.display = 'none';
+    setVisibility(dom.dialogueBox, false);
     dom.dialogueInput.value = '';
   }
 
@@ -1843,7 +1915,7 @@ const Game = (() => {
     let q = GameData.quests[questId];
     if (!q) return false;
     switch (q.type) {
-      case 'collect_bugs': return state.totalBugsCollected >= q.target;
+      case 'collect_bugs': return getTotalBugCatches(state) >= q.target;
       case 'visit_areas': return q.target.every(function (a) { return state.unlockedAreas.indexOf(a) !== -1; });
       case 'answer': return state.completedQuests.indexOf(questId) !== -1;
       case 'collect_specific_bug': return (state.bugLog[q.bugType] || 0) >= q.target;
@@ -1873,7 +1945,7 @@ const Game = (() => {
 
     switch (q.type) {
       case 'collect_bugs':
-        return state.totalBugsCollected + '/' + q.target + ' bugs';
+        return getTotalBugCatches(state) + '/' + q.target + ' bugs';
       case 'visit_areas':
         let visited = q.target.filter(function (a) { return state.unlockedAreas.indexOf(a) !== -1; }).length;
         return visited + '/' + q.target.length + ' areas';
@@ -2161,7 +2233,7 @@ const Game = (() => {
     let n = noise(col, row);
 
     switch (tile) {
-      case GameData.T.GROUND:
+      case GameData.T.GROUND: {
         // Rich ground with variation
         ctx.fillStyle = n < 0.5 ? pal.ground : pal.groundAlt;
         ctx.fillRect(sx, sy, TILE, TILE);
@@ -2187,8 +2259,9 @@ const Game = (() => {
           ctx.globalAlpha = 1;
         }
         break;
+      }
 
-      case GameData.T.WALL:
+      case GameData.T.WALL: {
         ctx.fillStyle = pal.wall;
         ctx.fillRect(sx, sy, TILE, TILE);
         // Better brick pattern
@@ -2207,8 +2280,9 @@ const Game = (() => {
         ctx.fillStyle = 'rgba(0,0,0,0.15)';
         ctx.fillRect(sx, sy + TILE - 2, TILE, 2);
         break;
+      }
 
-      case GameData.T.WATER:
+      case GameData.T.WATER: {
         let wt = gameTime * 2 + col * 0.5 + row * 0.3;
         ctx.fillStyle = pal.water;
         ctx.fillRect(sx, sy, TILE, TILE);
@@ -2225,8 +2299,9 @@ const Game = (() => {
           ctx.fillRect(sx + 12 + wave1, sy + 10, 3, 2);
         }
         break;
+      }
 
-      case GameData.T.PORTAL:
+      case GameData.T.PORTAL: {
         ctx.fillStyle = pal.ground;
         ctx.fillRect(sx, sy, TILE, TILE);
         let pt = gameTime * 3 + col + row;
@@ -2249,8 +2324,9 @@ const Game = (() => {
         ctx.fillText('\u2728', sx + TILE / 2, sy + TILE / 2 + 5);
         ctx.textAlign = 'left';
         break;
+      }
 
-      case GameData.T.TREE:
+      case GameData.T.TREE: {
         ctx.fillStyle = n < 0.5 ? pal.ground : pal.groundAlt;
         ctx.fillRect(sx, sy, TILE, TILE);
         // Shadow
@@ -2282,8 +2358,9 @@ const Game = (() => {
         ctx.arc(sx + 12, sy + 10, 5, 0, Math.PI * 2);
         ctx.fill();
         break;
+      }
 
-      case GameData.T.TALL_GRASS:
+      case GameData.T.TALL_GRASS: {
         ctx.fillStyle = n < 0.5 ? pal.ground : pal.groundAlt;
         ctx.fillRect(sx, sy, TILE, TILE);
         // Dense grass blades
@@ -2309,8 +2386,9 @@ const Game = (() => {
           ctx.fillRect(sx + 22 + Math.cos(gt * 1.3) * 4, sy + 14 + Math.sin(gt * 0.8) * 3, 2, 2);
         }
         break;
+      }
 
-      case GameData.T.PATH:
+      case GameData.T.PATH: {
         ctx.fillStyle = pal.path;
         ctx.fillRect(sx, sy, TILE, TILE);
         // Stone texture
@@ -2329,8 +2407,9 @@ const Game = (() => {
         ctx.fillRect(sx, sy, TILE, 1);
         ctx.fillRect(sx, sy, 1, TILE);
         break;
+      }
 
-      case GameData.T.FLOWERS:
+      case GameData.T.FLOWERS: {
         ctx.fillStyle = n < 0.5 ? pal.ground : pal.groundAlt;
         ctx.fillRect(sx, sy, TILE, TILE);
         let colors = ['#ef5350', '#ffd54f', '#ce93d8', '#4fc3f7', '#ff7043'];
@@ -2357,8 +2436,9 @@ const Game = (() => {
           ctx.fill();
         }
         break;
+      }
 
-      case GameData.T.BOOKSHELF:
+      case GameData.T.BOOKSHELF: {
         ctx.fillStyle = '#5d4037';
         ctx.fillRect(sx, sy, TILE, TILE);
         // Better books
@@ -2379,8 +2459,9 @@ const Game = (() => {
         ctx.fillStyle = 'rgba(0,0,0,0.1)';
         ctx.fillRect(sx, sy + TILE - 2, TILE, 2);
         break;
+      }
 
-      case GameData.T.CRYSTAL:
+      case GameData.T.CRYSTAL: {
         ctx.fillStyle = pal.ground;
         ctx.fillRect(sx, sy, TILE, TILE);
         let ct = gameTime * 1.5 + col + row;
@@ -2408,8 +2489,9 @@ const Game = (() => {
         ctx.fillStyle = 'rgba(255,255,255,' + (glow * 0.4) + ')';
         ctx.fillRect(sx + 14, sy + 8, 3, 3);
         break;
+      }
 
-      case GameData.T.CLOUD:
+      case GameData.T.CLOUD: {
         ctx.fillStyle = '#e3f2fd';
         ctx.fillRect(sx, sy, TILE, TILE);
         if (n > 0.4) {
@@ -2422,8 +2504,9 @@ const Game = (() => {
         ctx.fillStyle = 'rgba(255,255,255,0.3)';
         ctx.fillRect(sx, sy, TILE, 2);
         break;
+      }
 
-      case GameData.T.VOID:
+      case GameData.T.VOID: {
         ctx.fillStyle = '#0a0a15';
         ctx.fillRect(sx, sy, TILE, TILE);
         // Stars
@@ -2437,8 +2520,9 @@ const Game = (() => {
           ctx.fillRect(sx + 8, sy + 12, 4, 1);
         }
         break;
+      }
 
-      case GameData.T.DARK:
+      case GameData.T.DARK: {
         ctx.fillStyle = '#1a1a2e';
         ctx.fillRect(sx, sy, TILE, TILE);
         if (n > 0.7) {
@@ -2451,8 +2535,9 @@ const Game = (() => {
           ctx.fillRect(sx + 10, sy + 20, 6, 4);
         }
         break;
+      }
 
-      case GameData.T.HOUSE:
+      case GameData.T.HOUSE: {
         // Proper building wall with roof
         ctx.fillStyle = '#6d4c41';
         ctx.fillRect(sx, sy + 6, TILE, TILE - 6);
@@ -2478,8 +2563,9 @@ const Game = (() => {
         ctx.fillStyle = 'rgba(255, 249, 196, 0.3)';
         ctx.fillRect(sx + 11, sy + 13, 4, 3);
         break;
+      }
 
-      case GameData.T.LAMP_POST:
+      case GameData.T.LAMP_POST: {
         ctx.fillStyle = n < 0.5 ? pal.ground : pal.groundAlt;
         ctx.fillRect(sx, sy, TILE, TILE);
         // Post
@@ -2498,8 +2584,9 @@ const Game = (() => {
         ctx.arc(sx + 16, sy + 10, 16, 0, Math.PI * 2);
         ctx.fill();
         break;
+      }
 
-      case GameData.T.POND:
+      case GameData.T.POND: {
         ctx.fillStyle = pal.ground;
         ctx.fillRect(sx, sy, TILE, TILE);
         let pt = gameTime * 1.5 + col + row;
@@ -2524,8 +2611,9 @@ const Game = (() => {
         ctx.arc(sx + 24, sy + 8, 2, 0, Math.PI * 2);
         ctx.fill();
         break;
+      }
 
-      case GameData.T.FLOWER_CLUSTER:
+      case GameData.T.FLOWER_CLUSTER: {
         ctx.fillStyle = n < 0.5 ? pal.ground : pal.groundAlt;
         ctx.fillRect(sx, sy, TILE, TILE);
         let fcolors = ['#e91e63', '#9c27b0', '#ff5722', '#ffeb3b'];
@@ -2544,8 +2632,9 @@ const Game = (() => {
           ctx.fill();
         }
         break;
+      }
 
-      case GameData.T.ROCK:
+      case GameData.T.ROCK: {
         ctx.fillStyle = n < 0.5 ? pal.ground : pal.groundAlt;
         ctx.fillRect(sx, sy, TILE, TILE);
         // Rock body
@@ -2558,6 +2647,7 @@ const Game = (() => {
         ctx.ellipse(sx + 14, sy + 18, 6, 4, -0.3, 0, Math.PI * 2);
         ctx.fill();
         break;
+      }
     }
   }
 
@@ -2713,7 +2803,7 @@ const Game = (() => {
 
     // Name tag when near
     if (nearestNPC === npcId) {
-      ctx.font = '8px "Press Start 2P", monospace';
+      ctx.font = '8px ' + CANVAS_FONT_STACK;
       let nameW = ctx.measureText(npc.name).width;
       ctx.fillStyle = 'rgba(0,0,0,0.8)';
       ctx.fillRect(sx + 16 - nameW / 2 - 6, sy - 14 + bob, nameW + 12, 16);
@@ -2735,7 +2825,7 @@ const Game = (() => {
     if (hasQuest && nearestNPC !== npcId) {
       let excBob = Math.sin(gameTime * 4) * 3;
       ctx.fillStyle = '#ffd54f';
-      ctx.font = 'bold 14px "Press Start 2P", monospace';
+      ctx.font = 'bold 14px ' + CANVAS_FONT_STACK;
       ctx.textAlign = 'center';
       ctx.fillText('!', sx + 16, sy - 4 + excBob + bob);
       ctx.textAlign = 'left';
@@ -2862,7 +2952,7 @@ const Game = (() => {
     if (p.text) {
       ctx.globalAlpha = alpha;
       ctx.fillStyle = p.color;
-      ctx.font = 'bold ' + p.size + 'px "Press Start 2P", monospace';
+      ctx.font = 'bold ' + p.size + 'px ' + CANVAS_FONT_STACK;
       ctx.textAlign = 'center';
       ctx.fillText(p.text, sx, sy);
       ctx.textAlign = 'left';
@@ -2970,14 +3060,14 @@ const Game = (() => {
     if (vibeMode.active) {
       let tp = 0.7 + Math.sin(gameTime * 6) * 0.3;
       ctx.globalAlpha = tp * a;
-      ctx.font = 'bold 14px "Press Start 2P", monospace';
+      ctx.font = 'bold 14px ' + CANVAS_FONT_STACK;
       ctx.textAlign = 'center';
       ctx.shadowColor = '#29d7ff'; ctx.shadowBlur = 20;
       ctx.fillStyle = '#ff4d8d';
       ctx.fillText('VIBE MODE', canvasW / 2, 46);
       ctx.fillStyle = '#29d7ff';
-      ctx.font = '8px "Press Start 2P", monospace';
-      ctx.fillText('x2 BUGS \u2022 CHAIN ' + comboState.count, canvasW / 2, 62);
+      ctx.font = '8px ' + CANVAS_FONT_STACK;
+      ctx.fillText('x2 BUGS // CHAIN ' + comboState.count, canvasW / 2, 62);
       ctx.shadowBlur = 0; ctx.textAlign = 'left'; ctx.globalAlpha = 1;
     }
   }
@@ -3006,7 +3096,7 @@ const Game = (() => {
     }
 
     ctx.globalAlpha = 0.85;
-    ctx.font = '8px "Press Start 2P", monospace';
+    ctx.font = '8px ' + CANVAS_FONT_STACK;
     ctx.textAlign = 'center';
     ctx.fillStyle = pulseStorm.phase === 'scatter' ? '#ffd54f' : '#29d7ff';
     ctx.fillText('PULSE STORM // ' + pulseStorm.phase.toUpperCase(), canvasW / 2, canvasH - 28);
@@ -3091,7 +3181,7 @@ const Game = (() => {
   // ====== BESTIARY ======
   function toggleBestiary() {
     bestiaryOpen = !bestiaryOpen;
-    dom.bestiaryPanel.style.display = bestiaryOpen ? 'block' : 'none';
+    setVisibility(dom.bestiaryPanel, bestiaryOpen, 'block');
     if (bestiaryOpen) renderBestiary();
   }
 
@@ -3173,7 +3263,7 @@ const Game = (() => {
 
   function toggleScanner() {
     scannerOpen = !scannerOpen;
-    dom.scannerPanel.style.display = scannerOpen ? 'block' : 'none';
+    setVisibility(dom.scannerPanel, scannerOpen, 'block');
     if (scannerOpen) dom.interactPrompt.style.display = 'none';
     else if (started) checkNPCProximity();
     scannerRefreshTimer = 0;
@@ -3204,7 +3294,7 @@ const Game = (() => {
       speciesHtml +=
         '<div class="scanner-row">' +
           '<span class="scanner-row-name" style="color:' + def.color + '">' + def.name + '</span>' +
-          '<span class="scanner-row-meta">' + percent + '% • seen ' + seen + '</span>' +
+          '<span class="scanner-row-meta">' + percent + '% &middot; seen ' + seen + '</span>' +
         '</div>';
     }
     if (!speciesHtml) speciesHtml = '<div class="scanner-empty">No viable bug signatures found.</div>';
@@ -3257,7 +3347,7 @@ const Game = (() => {
           '<div><strong>Objective:</strong> ' + getActiveObjectiveText() + '</div>' +
           '<div><strong>Storm:</strong> ' + getStormLabel() + '</div>' +
           '<div><strong>Signal Lure:</strong> ' + getSignalLureLabel() + '</div>' +
-          '<div><strong>Chain:</strong> x' + comboState.count + ' now • best x' + (state.bestCombo || 0) + '</div>' +
+          '<div><strong>Chain:</strong> x' + comboState.count + ' now &middot; best x' + (state.bestCombo || 0) + '</div>' +
         '</div>' +
       '</section>';
   }
@@ -3304,22 +3394,22 @@ const Game = (() => {
     }
     let activeCount = Object.keys(state.activeQuests).length;
     if (activeCount > 0) {
-      dom.questIndicator.style.display = 'block';
+      setVisibility(dom.questIndicator, true, 'block');
       dom.questIndicator.textContent = activeCount + ' quest' + (activeCount > 1 ? 's' : '');
     } else {
-      dom.questIndicator.style.display = 'none';
+      setVisibility(dom.questIndicator, false);
     }
     if (dom.goldenBugs) {
       let gb = state.goldenBugs || 0;
       dom.goldenBugs.textContent = gb + ' Golden';
-      dom.goldenBugs.style.display = gb > 0 ? 'block' : 'none';
+      setVisibility(dom.goldenBugs, gb > 0, 'block');
     }
     updateMinimapPlayer();
   }
 
   function showNotification(text) {
     dom.notification.textContent = text;
-    dom.notification.style.display = 'block';
+    setVisibility(dom.notification, true, 'block');
     notifTimer = 3;
   }
 
@@ -3361,7 +3451,7 @@ const Game = (() => {
     let def = GameData.achievementDefs.find(function (a) { return a.id === id; });
     if (!def) return;
     dom.achievePopup.querySelector('.ach-name').textContent = def.name;
-    dom.achievePopup.style.display = 'block';
+    setVisibility(dom.achievePopup, true, 'block');
     achieveTimer = 4;
     playSound('achieve');
     showNotification(def.desc);
@@ -3369,7 +3459,7 @@ const Game = (() => {
 
   function toggleInventory() {
     inventoryOpen = !inventoryOpen;
-    dom.inventoryPanel.style.display = inventoryOpen ? 'block' : 'none';
+    setVisibility(dom.inventoryPanel, inventoryOpen, 'block');
     if (inventoryOpen) renderInventory();
   }
 
@@ -3443,7 +3533,8 @@ const Game = (() => {
     let timeStr = isNightTime() ? 'Night' : 'Day';
     if (stats) {
       stats.innerHTML = '<span>Bugs: ' + state.bugs + '</span>' +
-        '<span>Total: ' + state.totalBugsCollected + '</span>' +
+        '<span>Caught: ' + getTotalBugCatches(state) + '</span>' +
+        '<span>Earned: ' + state.totalBugsCollected + '</span>' +
         '<span>Best Chain: ' + (state.bestCombo || 0) + '</span>' +
         '<span>' + timeStr + '</span>';
     }
@@ -3451,12 +3542,12 @@ const Game = (() => {
 
   function toggleMenu() {
     menuOpen = !menuOpen;
-    dom.menuPanel.style.display = menuOpen ? 'block' : 'none';
+    setVisibility(dom.menuPanel, menuOpen, 'block');
   }
 
   function toggleQuests() {
     questsOpen = !questsOpen;
-    dom.questsPanel.style.display = questsOpen ? 'block' : 'none';
+    setVisibility(dom.questsPanel, questsOpen, 'block');
     if (questsOpen) renderQuests();
   }
 
@@ -3499,15 +3590,21 @@ const Game = (() => {
     return m + 'm';
   }
 
-  async function saveGame() { 
-    if (cookiesAccepted) await SaveSystem.save(state); 
+  async function saveGame() {
+    if (!cookiesAccepted || !state) return false;
+    const saved = await SaveSystem.save(state);
+    if (saved) {
+      savePreviewPromise = Promise.resolve(state);
+      renderContinueInfo(state);
+    }
+    return !!saved;
   }
 
   // ====== INIT ON LOAD ======
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
+    document.addEventListener('DOMContentLoaded', function () { void init(); });
   } else {
-    init();
+    void init();
   }
 
   return { init: init };
