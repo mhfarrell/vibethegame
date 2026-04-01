@@ -75,7 +75,7 @@ export const GameData = (() => {
       map: parseMap(
         '##############################\n' +
         '#.F..T........T......T....F.#\n' +
-        '#PPPPP.F...LLLLLL.......L...#\n' +
+        '#..P...F...LLLLLL.......L...#\n' +
         '#.T......============......##\n' +
         '#........=..........=......##\n' +
         '#........=..........=.......#\n' +
@@ -83,34 +83,22 @@ export const GameData = (() => {
         '#...K....=..........=...K..##\n' +
         '#..T.....=..........=.......#\n' +
         '#........=====..=====......##\n' +
-        '#............=PPP=.........##\n' +
+        '#............==P==.........##\n' +
         '#...T........=..=.....T....#\n' +
         '#............=..=.......*.##\n' +
         '#..**........=..=.......*.##\n' +
         '#..**..F.....=..=......T..##\n' +
         '#..HH........=..=.........#\n' +
-        '#..HH......======....PPPPP#\n' +
+        '#..HH......======......P..#\n' +
         '#..HH....*..............*.#\n' +
-        '#......T.........T........#\n' +
+        '#......T...P.....T........#\n' +
         '##############################'
       ),
       portals: [
-        { x: 21, y: 16, dest: 'syntax_meadows', destX: 576, destY: 320 },
-        { x: 22, y: 16, dest: 'syntax_meadows', destX: 576, destY: 320 },
         { x: 23, y: 16, dest: 'syntax_meadows', destX: 576, destY: 320 },
-        { x: 24, y: 16, dest: 'syntax_meadows', destX: 576, destY: 320 },
-        { x: 25, y: 16, dest: 'syntax_meadows', destX: 576, destY: 320 },
-        { x: 1, y: 2, dest: 'repository', destX: 160, destY: 512 },
-        { x: 2, y: 2, dest: 'repository', destX: 160, destY: 512 },
         { x: 3, y: 2, dest: 'repository', destX: 160, destY: 512 },
-        { x: 4, y: 2, dest: 'repository', destX: 160, destY: 512 },
-        { x: 5, y: 2, dest: 'repository', destX: 160, destY: 512 },
-        { x: 14, y: 10, dest: 'neon_garden', destX: 512, destY: 320 },
         { x: 15, y: 10, dest: 'neon_garden', destX: 512, destY: 320 },
-        { x: 16, y: 10, dest: 'neon_garden', destX: 512, destY: 320 },
-        { x: 10, y: 18, dest: 'twilight_grove', destX: 320, destY: 480 },
-        { x: 11, y: 18, dest: 'twilight_grove', destX: 320, destY: 480 },
-        { x: 12, y: 18, dest: 'twilight_grove', destX: 320, destY: 480 }
+        { x: 11, y: 18, dest: 'twilight_grove', destX: 320, destY: 480 }
       ],
       npcs: ['prof_semicolon', 'vendor_vivian', 'dj_beatbyte']
     },
@@ -136,26 +124,20 @@ export const GameData = (() => {
         '#....~~~~~~~~~~~...........#\n' +
         '#....~~~~~~~~~~~......*....#\n' +
         '#....~~~~~~~~~~~..T........#\n' +
-        'PPPPP~~~~~~~~~~~...........#\n' +
+        '#.P..~~~~~~~~~~~...........#\n' +
         '#....~~~~~~~~~~~.......*...#\n' +
         '#....~~~~~~~~~~~...........#\n' +
-        '#....~~~~~~~~~~~..........P#\n' +
-        '#..*..........T.........*.P#\n' +
-        '#T........*...........T...P#\n' +
+        '#....~~~~~~~~~~~...........#\n' +
+        '#..*..........T..........P.#\n' +
+        '#T........*...........T....#\n' +
         '#...**...........**........#\n' +
         '#....*......F..........*...#\n' +
         '#.T....*.........T...*..T..#\n' +
         '##############################'
       ),
       portals: [
-        { x: 0, y: 10, dest: 'spawn_village', destX: 608, destY: 480 },
-        { x: 1, y: 10, dest: 'spawn_village', destX: 608, destY: 480 },
         { x: 2, y: 10, dest: 'spawn_village', destX: 608, destY: 480 },
-        { x: 3, y: 10, dest: 'spawn_village', destX: 608, destY: 480 },
-        { x: 4, y: 10, dest: 'spawn_village', destX: 608, destY: 480 },
-        { x: 26, y: 13, dest: 'null_caves', destX: 160, destY: 320 },
-        { x: 26, y: 14, dest: 'null_caves', destX: 160, destY: 320 },
-        { x: 26, y: 15, dest: 'null_caves', destX: 160, destY: 320 }
+        { x: 25, y: 14, dest: 'null_caves', destX: 160, destY: 320 }
       ],
       npcs: ['bug_hunter_beatrix']
     },
@@ -188,19 +170,13 @@ export const GameData = (() => {
         '#..BB..BB........*...*....##\n' +
         '#...........................##\n' +
         '#..=========..............##\n' +
-        '#......................PPP.##\n' +
-        '#PPPPP.....................##\n' +
+        '#.......................P..##\n' +
+        '#..P.......................##\n' +
         '##############################'
       ),
       portals: [
-        { x: 23, y: 17, dest: 'cloud_nine', destX: 448, destY: 480, requireItem: 'portal_key' },
         { x: 24, y: 17, dest: 'cloud_nine', destX: 448, destY: 480, requireItem: 'portal_key' },
-        { x: 25, y: 17, dest: 'cloud_nine', destX: 448, destY: 480, requireItem: 'portal_key' },
-        { x: 1, y: 18, dest: 'spawn_village', destX: 160, destY: 128 },
-        { x: 2, y: 18, dest: 'spawn_village', destX: 160, destY: 128 },
-        { x: 3, y: 18, dest: 'spawn_village', destX: 160, destY: 128 },
-        { x: 4, y: 18, dest: 'spawn_village', destX: 160, destY: 128 },
-        { x: 5, y: 18, dest: 'spawn_village', destX: 160, destY: 128 }
+        { x: 3, y: 18, dest: 'spawn_village', destX: 160, destY: 128 }
       ],
       npcs: ['archivist_ada']
     },
@@ -226,7 +202,7 @@ export const GameData = (() => {
         '#DDDDDDD#DDDDDDDDD#DDDDDDD*#\n' +
         '#DD#DDDDDDDDDDDDDD#DDDDDDDD#\n' +
         '#DD#DDDDC..CDDDDDDDDDDDDDD*#\n' +
-        'PPPPDDDDDDDDDDDDDDDDDD#DDDD#\n' +
+        '#PDDDDDDDDDDDDDDDDDDDD#DDDD#\n' +
         '#DDD#DDDDDDDDDDDDDDDDD#DDDD#\n' +
         '#DDD#DDDD*DDD*DDDDDDDDDDDDD#\n' +
         '#DDDDDDDDDDDDDDDDDDC..CDDDD#\n' +
@@ -238,10 +214,7 @@ export const GameData = (() => {
         '##############################'
       ),
       portals: [
-        { x: 0, y: 10, dest: 'syntax_meadows', destX: 768, destY: 448 },
-        { x: 1, y: 10, dest: 'syntax_meadows', destX: 768, destY: 448 },
-        { x: 2, y: 10, dest: 'syntax_meadows', destX: 768, destY: 448 },
-        { x: 3, y: 10, dest: 'syntax_meadows', destX: 768, destY: 448 }
+        { x: 1, y: 10, dest: 'syntax_meadows', destX: 768, destY: 448 }
       ],
       npcs: ['shadow_null']
     },
@@ -274,15 +247,12 @@ export const GameData = (() => {
         'XXXXOOOOOOOOOOOOOOOOOOOXXXXX##\n' +
         'XXXXOOOOOOOOOOOOOOOOOOXXXXXX##\n' +
         'XXXXXOOOOOOOOOOOOOOOXXXXXXX##\n' +
-        'XXXXXXOOOOOOPPPPOOOXXXXXXXX##\n' +
+        'XXXXXXOOOOOO.P.OOOOXXXXXXXX##\n' +
         'XXXXXXXOOOOOOOOOXXXXXXXXX####\n' +
         'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX'
       ),
       portals: [
-        { x: 12, y: 17, dest: 'repository', destX: 448, destY: 64 },
-        { x: 13, y: 17, dest: 'repository', destX: 448, destY: 64 },
-        { x: 14, y: 17, dest: 'repository', destX: 448, destY: 64 },
-        { x: 15, y: 17, dest: 'repository', destX: 448, destY: 64 }
+        { x: 14, y: 17, dest: 'repository', destX: 448, destY: 64 }
       ],
       npcs: ['cloudkeeper_cirrus']
     },
@@ -316,13 +286,11 @@ export const GameData = (() => {
         '#....***..........L...***....#\n' +
         '#.....T....T......L..........#\n' +
         '#K.................LLLLL....K#\n' +
-        '#....Y.Y.Y..........PPP......#\n' +
+        '#....Y.Y.Y...........P.......#\n' +
         '################################'
       ),
       portals: [
-        { x: 18, y: 18, dest: 'spawn_village', destX: 320, destY: 480 },
-        { x: 19, y: 18, dest: 'spawn_village', destX: 320, destY: 480 },
-        { x: 20, y: 18, dest: 'spawn_village', destX: 320, destY: 480 }
+        { x: 19, y: 18, dest: 'spawn_village', destX: 320, destY: 480 }
       ],
       npcs: ['luna_moth', 'pond_keeper']
     },
@@ -360,17 +328,12 @@ export const GameData = (() => {
         '#.....T..=..=....=..=..T......#\n' +
         '#..*..T..=..=....=..=..T..*...#\n' +
         '#..*.....====....====.....*...#\n' +
-        '#PPP..*....C....*.....Y.......#\n' +
-        '#PPP..........................#\n' +
+        '#.....*....C....*.....Y.......#\n' +
+        '#.P...........................#\n' +
         '################################'
       ),
       portals: [
-        { x: 1, y: 17, dest: 'spawn_village', destX: 480, destY: 384 },
-        { x: 2, y: 17, dest: 'spawn_village', destX: 480, destY: 384 },
-        { x: 3, y: 17, dest: 'spawn_village', destX: 480, destY: 384 },
-        { x: 1, y: 18, dest: 'spawn_village', destX: 480, destY: 384 },
-        { x: 2, y: 18, dest: 'spawn_village', destX: 480, destY: 384 },
-        { x: 3, y: 18, dest: 'spawn_village', destX: 480, destY: 384 }
+        { x: 2, y: 18, dest: 'spawn_village', destX: 480, destY: 384 }
       ],
       npcs: ['remix_ren']
     }

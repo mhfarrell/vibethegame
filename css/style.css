@@ -1084,7 +1084,7 @@ input {
   z-index: 35;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.3s;
+  transition: opacity 0.35s ease-in-out, background 0.2s;
 }
 
 /* ---- MOBILE CONTROLS ---- */

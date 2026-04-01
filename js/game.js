@@ -2048,8 +2048,31 @@ const Game = (() => {
     if (transitioning) return;
     transitioning = true;
     playSound('portal');
+
+    // Inward spiral particles at entry
+    let px = state.player.x + TILE / 2;
+    let py = state.player.y + TILE / 2;
+    for (let i = 0; i < 14; i++) {
+      let a = (i / 14) * Math.PI * 2;
+      let d = 70 + Math.random() * 30;
+      particles.push({
+        x: px + Math.cos(a) * d,
+        y: py + Math.sin(a) * d,
+        vx: -Math.cos(a) * 140,
+        vy: -Math.sin(a) * 140,
+        life: 0.4, maxLife: 0.4,
+        color: i % 3 === 0 ? '#66bb6a' : i % 3 === 1 ? '#4fd5f7' : '#fff',
+        size: 2.5 + Math.random() * 2
+      });
+    }
+
+    // Radial wipe overlay
+    dom.transitionOverlay.style.background = 'radial-gradient(circle, rgba(123,224,127,0.3), #000 70%)';
     dom.transitionOverlay.style.opacity = '1';
+
     setTimeout(function () {
+      dom.transitionOverlay.style.background = '#000';
+
       state.player.x = destX;
       state.player.y = destY;
       state.player.area = destArea;
@@ -2058,12 +2081,28 @@ const Game = (() => {
       camera.targetX = camera.x;
       camera.targetY = camera.y;
       loadArea(destArea);
+
+      // Outward burst particles at destination
+      for (let i = 0; i < 14; i++) {
+        let a = (i / 14) * Math.PI * 2;
+        particles.push({
+          x: destX + TILE / 2,
+          y: destY + TILE / 2,
+          vx: Math.cos(a) * (80 + Math.random() * 60),
+          vy: Math.sin(a) * (80 + Math.random() * 60),
+          life: 0.6, maxLife: 0.6,
+          color: i % 3 === 0 ? '#66bb6a' : i % 3 === 1 ? '#4fd5f7' : '#fff',
+          size: 2.5 + Math.random() * 2
+        });
+      }
+
       setTimeout(function () {
         dom.transitionOverlay.style.opacity = '0';
+        dom.transitionOverlay.style.background = '#000';
         transitioning = false;
         portalCooldown = 0.5;
-      }, 300);
-    }, 300);
+      }, 350);
+    }, 400);
   }
 
   // ====== PARTICLES ======
@@ -2346,46 +2385,66 @@ const Game = (() => {
       case GameData.T.PORTAL: {
         ctx.fillStyle = pal.ground;
         ctx.fillRect(sx, sy, TILE, TILE);
-        let pt = gameTime * 2 + col * 0.5 + row * 0.5;
+        let pt = gameTime * 2 + col * 0.3 + row * 0.3;
         let pcx = sx + TILE / 2;
         let pcy = sy + TILE / 2;
+        let pr = 22; // big radius, bleeds into neighbours
         ctx.save();
         ctx.translate(pcx, pcy);
-        // Dark void center
-        let grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 14);
-        grad.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
-        grad.addColorStop(0.5, 'rgba(15, 8, 35, 0.6)');
+        // Outer glow halo
+        let glow = ctx.createRadialGradient(0, 0, pr * 0.6, 0, 0, pr + 8);
+        glow.addColorStop(0, 'rgba(102, 187, 106, 0)');
+        glow.addColorStop(0.5, 'rgba(102, 187, 106, 0.08)');
+        glow.addColorStop(1, 'rgba(102, 187, 106, 0)');
+        ctx.fillStyle = glow;
+        ctx.beginPath();
+        ctx.arc(0, 0, pr + 8, 0, Math.PI * 2);
+        ctx.fill();
+        // Dark void
+        let grad = ctx.createRadialGradient(0, 0, 0, 0, 0, pr);
+        grad.addColorStop(0, 'rgba(0, 0, 0, 0.92)');
+        grad.addColorStop(0.4, 'rgba(8, 4, 22, 0.8)');
+        grad.addColorStop(0.75, 'rgba(40, 20, 80, 0.35)');
         grad.addColorStop(1, 'rgba(102, 187, 106, 0)');
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(0, 0, 14, 0, Math.PI * 2);
+        ctx.arc(0, 0, pr, 0, Math.PI * 2);
         ctx.fill();
-        // Outer ring (rotating)
-        ctx.strokeStyle = 'rgba(102, 187, 106, 0.55)';
+        // Outer ring
+        ctx.strokeStyle = 'rgba(102, 187, 106, 0.6)';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, pr - 2 + Math.sin(pt * 1.5) * 1.5, pt, pt + Math.PI * 1.4);
+        ctx.stroke();
+        // Mid ring (counter-rotate)
+        ctx.strokeStyle = 'rgba(79, 213, 247, 0.5)';
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(0, 0, 12 + Math.sin(pt * 1.5) * 1.5, pt, pt + Math.PI * 1.2);
+        ctx.arc(0, 0, pr * 0.6 + Math.sin(pt * 2), -pt * 1.3, -pt * 1.3 + Math.PI * 1.1);
         ctx.stroke();
-        // Inner ring (counter-rotating)
-        ctx.strokeStyle = 'rgba(79, 213, 247, 0.45)';
+        // Inner ring
+        ctx.strokeStyle = 'rgba(123, 224, 127, 0.35)';
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(0, 0, 8 + Math.sin(pt * 2), -pt * 1.3, -pt * 1.3 + Math.PI);
+        ctx.arc(0, 0, pr * 0.35, pt * 2, pt * 2 + Math.PI * 0.8);
         ctx.stroke();
-        // Orbiting particles
-        for (let sp = 0; sp < 4; sp++) {
-          let sa = pt * 1.5 + sp * Math.PI / 2;
-          let sr = 10 + Math.sin(pt * 3 + sp) * 2;
-          ctx.fillStyle = sp % 2 === 0 ? 'rgba(123, 224, 127, 0.7)' : 'rgba(79, 213, 247, 0.6)';
+        // Orbiting sparks
+        for (let sp = 0; sp < 6; sp++) {
+          let sa = pt * 1.5 + sp * Math.PI / 3;
+          let sr = pr * 0.7 + Math.sin(pt * 3 + sp * 1.2) * 3;
+          let alpha = 0.5 + Math.sin(pt * 4 + sp) * 0.3;
+          ctx.fillStyle = sp % 2 === 0
+            ? 'rgba(123, 224, 127, ' + alpha + ')'
+            : 'rgba(79, 213, 247, ' + alpha + ')';
           ctx.beginPath();
-          ctx.arc(Math.cos(sa) * sr, Math.sin(sa) * sr, 1.5, 0, Math.PI * 2);
+          ctx.arc(Math.cos(sa) * sr, Math.sin(sa) * sr, 2, 0, Math.PI * 2);
           ctx.fill();
         }
-        // Center pulse glow
-        let pp = 0.3 + Math.sin(pt * 2) * 0.15;
+        // Center glow pulse
+        let pp = 0.35 + Math.sin(pt * 2.5) * 0.2;
         ctx.fillStyle = 'rgba(123, 224, 127, ' + pp + ')';
         ctx.beginPath();
-        ctx.arc(0, 0, 4, 0, Math.PI * 2);
+        ctx.arc(0, 0, 5, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
         break;
