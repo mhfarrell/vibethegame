@@ -1909,7 +1909,8 @@ const Game = (() => {
       }
     } catch (e) {
       typingMsg.remove();
-      // Fallback to keyword matching
+      console.warn('AI dialogue failed:', e.message);
+      addMessage('system', '[AI offline — using local dialogue]');
       sendDialogueFallback(input);
     }
 
