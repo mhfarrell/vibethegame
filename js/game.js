@@ -1676,7 +1676,7 @@ const Game = (() => {
         } else if (state.activeQuests[qId]) {
           questGreeting = q.name + ': ' + getQuestProgressText(qId) + '. Keep going!';
         } else if (state.completedQuests.indexOf(qId) === -1) {
-          questGreeting = "I have a quest for you! Do you accept? Say 'quest' to hear the details.";
+          questGreeting = "I have a quest for you! Say 'yes' to accept, or 'quest' for details.";
         }
       }
     });
@@ -1919,11 +1919,78 @@ const Game = (() => {
     if (dialogueOpen) dom.dialogueInput.focus();
   }
 
+  // NPC personality pools for when nothing else matches
+  const npcFallbackLines = {
+    prof_semicolon: [
+      "Every good coder starts with questions! Ask me about quests, bugs, the different areas, or what items you should buy.",
+      "The Vibeverse has so much to explore! Meadows to the east, the Repository up north, dark caves beyond... what catches your interest?",
+      "You remind me of a young function — full of potential but not yet called! Try asking about a quest, or head east to the Syntax Meadows for bug hunting.",
+      "Between you and me, the best bug chains happen in the tall grass near the meadows. But first, got any questions about quests or items?"
+    ],
+    vendor_vivian: [
+      "You browsing or buying? Say 'shop' and I'll show you what's in stock. Everything a bug collector could need!",
+      "Bugs burning a hole in your pocket? I've got nets, boots, lanterns, lures... name your price range!",
+      "Window shopping, are we? My best seller is the Bug Net — 20 bugs and you catch twice as fast. Say the word!",
+      "I don't do small talk for free, but I DO sell things for bugs! What do you need — speed, light, fishing gear?"
+    ],
+    dj_beatbyte: [
+      "You wanna talk rhythm or just stand there? Catch bugs back-to-back for a combo chain. Get a 4-chain and we'll really be cooking.",
+      "The beat waits for no one. If you want the Neon Garden portal open, show me a 4-bug chain. Ask about the quest if you're ready.",
+      "Every chain starts with one catch. Get out there, find some tall grass, and show me what your timing looks like.",
+      "The portal hums but it needs your frequency. Ask me about the combo challenge when you're ready to prove yourself."
+    ],
+    bug_hunter_beatrix: [
+      "Bugs bugs BUGS! That's all I care about! Ask me for tips, take on my challenge, or just wade into the tall grass and start catching!",
+      "See those sparkly patches in the grass? That's where the bugs hide! Walk through and they'll pop out. Wanna hear about my quest?",
+      "I've caught more bugs than lines in a legacy codebase! If you want a real challenge, ask me about the Bug Census.",
+      "The meadows are alive today! Perfect conditions for catching. Want some tips, or ready to take on my challenge?"
+    ],
+    archivist_ada: [
+      "Knowledge awaits those who seek it. Ask about the Repository, the zones of the Vibeverse, Cloud Nine, or my scholarly quest.",
+      "These shelves hold the compiled wisdom of ages. If you seek passage to Cloud Nine, you'll need a Portal Key from Vivian's shop.",
+      "A true scholar explores every corner. Have you visited all four ground zones? I have a quest for the thorough explorer.",
+      "The Great Compiler's work surrounds us. Ask me about the lore, the prophecy, or how to reach Cloud Nine."
+    ],
+    shadow_null: [
+      "Silence speaks louder than noise in the void. But if you seek my riddle, ask for it... if you dare.",
+      "The darkness holds many questions. What is the thing that has no value, yet gives meaning to all others?",
+      "You stumble through my caves without purpose. Ask about the riddle, the void, or what lies beyond the null.",
+      "Everything here was once something. Now it is... less. If you seek my challenge, speak of quests or riddles."
+    ],
+    cloudkeeper_cirrus: [
+      "The clouds drift, and so does time. You've reached the highest point in the Vibeverse. Ask about the Great Debug if you seek the final challenge.",
+      "Up here, bugs float on thermals and the code compiles itself. Are you ready for the ultimate quest?",
+      "Few reach Cloud Nine. Fewer still complete what awaits here. Ask me about the Great Debug when you're ready.",
+      "The sky remembers every bug ever caught. Tell me... are you here for the final challenge?"
+    ],
+    luna_moth: [
+      "The grove whispers tonight. Moonfire Bugs dance in the dark grass — catch 3 and the night spirits will notice you. Ask about my quest.",
+      "Gentle soul, the twilight holds many secrets. Would you like to hear about the Moonfire Gathering, or perhaps... adopting a companion?",
+      "The night creatures trust those who walk softly. Catch Moonfire Bugs to prove your heart, then we'll talk about adoption.",
+      "Every rustle in the grove is a story. Ask me about the moonfire quest, fishing in the pond, or what creatures call this place home."
+    ],
+    pond_keeper: [
+      "The pond is calm today. If you've got a Fishing Rod, stand at the water's edge and press F. I can teach you more if you ask about fishing.",
+      "Patience is the first lesson of the angler. The second is having a Fishing Rod — Vivian sells them for 30 bugs. Ready to hear about my quest?",
+      "Five fish. That's all I ask. Catch five and you'll understand why I never leave this pond. Ask about the Fishing Frenzy.",
+      "The water holds Glow Minnows, Silver Darts, and if you're lucky... a Rainbowfin. Want to take on my fishing challenge?"
+    ],
+    remix_ren: [
+      "G-g-glitch in the signal! The Neon Garden pulses with rare Glitchlings. Catch 3 and I'll rewire your pulse tech. Ask about the quest!",
+      "You feel that static? That's the garden breathing. The Glitchlings are out there — catch them and I'll make it worth your while.",
+      "Everything here is a remix of a remix. The bugs glow different, the sky hums different. Wanna chase some Glitchlings for me?",
+      "The garden responds to those who collect its creatures. Ask about the Glitch Glow quest and I'll hook you up with something special."
+    ]
+  };
+
   function sendDialogueFallback(input) {
     let npc = GameData.npcDefs[currentNPCId];
     let lower = input.toLowerCase();
     let response = null;
+    let isAgreeing = !!lower.match(/\b(yes|yeah|sure|ok|okay|accept|yep|yup|definitely|absolutely|lets go|let's go|do it|ready|bring it|go ahead|i accept|sounds good|why not|hell yeah|alright)\b/);
+    let isDeclining = !!lower.match(/\b(no|nah|nope|nevermind|cancel|nvm|pass|decline|not now|maybe later)\b/);
 
+    // Pet adoption (Luna Moth special)
     if (currentNPCId === 'luna_moth' && lower.indexOf('adopt') !== -1) {
       if (state.completedQuests.indexOf('moonfire_gathering') === -1) {
         addMessage('npc', 'The grove is not ready yet. Bring me 3 Moonfire Bugs first, then the night spirits will listen.');
@@ -1931,14 +1998,14 @@ const Game = (() => {
       }
       let chosenPet = detectPetType(lower);
       if (!chosenPet) {
-        addMessage('npc', "Tell me exactly who you wish to adopt: duskwing, moonfire, or dreamspinner.");
+        addMessage('npc', "Which companion calls to you? Say 'adopt duskwing', 'adopt moonfire', or 'adopt dreamspinner'.");
         return;
       }
       addMessage('npc', adoptPet(chosenPet));
       return;
     }
 
-    // Quest turn-in
+    // 1. Quest turn-in (active + complete + talking to giver)
     for (let qId in state.activeQuests) {
       if (isQuestComplete(qId)) {
         let quest = GameData.quests[qId];
@@ -1951,7 +2018,81 @@ const Game = (() => {
       }
     }
 
-    // Topic matching
+    // 2. Quest acceptance — if NPC has a quest and player agrees or says quest-related words
+    let availableQuest = null;
+    for (let t = 0; t < npc.topics.length; t++) {
+      if (npc.topics[t].quest) {
+        let qId = npc.topics[t].quest;
+        if (state.completedQuests.indexOf(qId) === -1 && !state.activeQuests[qId]) {
+          availableQuest = { topic: npc.topics[t], questId: qId };
+          break;
+        }
+      }
+    }
+
+    if (availableQuest && (isAgreeing || lower.match(/\b(quest|task|job|mission|challenge|work|what do you need|give me)\b/))) {
+      let qId = availableQuest.questId;
+      state.activeQuests[qId] = { started: Date.now(), readyNotified: false };
+      addMessage('npc', availableQuest.topic.text);
+      addMessage('system', 'New quest: ' + GameData.quests[qId].name + ' — ' + GameData.quests[qId].desc);
+      playSound('quest');
+      updateHUD();
+      return;
+    }
+
+    if (availableQuest && isDeclining) {
+      addMessage('npc', "No pressure! Come back when you're ready. I'll be here.");
+      return;
+    }
+
+    // 3. Shop confirmation
+    if (lastShopItem && isAgreeing) {
+      let itemDef = GameData.items[lastShopItem];
+      if (state.inventory.indexOf(lastShopItem) !== -1) {
+        response = "You already own the " + itemDef.name + "!";
+      } else if (state.bugs >= itemDef.price) {
+        state.bugs -= itemDef.price;
+        state.inventory.push(lastShopItem);
+        response = "Sold! " + itemDef.name + " is yours! You have " + state.bugs + " bugs left.";
+        playSound('purchase');
+        addMessage('npc', response);
+        addMessage('system', 'Purchased: ' + itemDef.name + '!');
+        if (lastShopItem === 'portal_key' && state.unlockedAreas.indexOf('cloud_nine') === -1) {
+          state.unlockedAreas.push('cloud_nine');
+          addMessage('system', 'Cloud Nine is now accessible from the Repository!');
+        }
+        lastShopItem = null;
+        updateHUD();
+        if (state.inventory.length >= 3 && state.achievements.indexOf('big_spender') === -1) unlockAchievement('big_spender');
+        return;
+      } else {
+        response = "Not enough bugs! You need " + itemDef.price + " but only have " + state.bugs + ". Go catch more!";
+      }
+      lastShopItem = null;
+      addMessage('npc', response);
+      return;
+    }
+
+    if (isDeclining && lastShopItem) {
+      lastShopItem = null;
+      addMessage('npc', "No worries! Anything else catch your eye?");
+      return;
+    }
+
+    // 4. Riddle quest answer check
+    for (let t = 0; t < npc.topics.length; t++) {
+      let topic = npc.topics[t];
+      if (topic.questAnswer && state.activeQuests[topic.questAnswer] && !isQuestComplete(topic.questAnswer)) {
+        if (matchScore(input, topic.kw) >= 5) {
+          response = npc.questResponses[topic.questAnswer + '_complete'] || topic.text;
+          playSound('quest');
+          finishQuest(topic.questAnswer, npc, response);
+          return;
+        }
+      }
+    }
+
+    // 5. Topic matching (lower threshold)
     let bestScore = 0;
     let bestTopic = null;
     for (let t = 0; t < npc.topics.length; t++) {
@@ -1961,70 +2102,85 @@ const Game = (() => {
       if (score > bestScore) { bestScore = score; bestTopic = topic; }
     }
 
-    if (bestTopic && bestScore >= 3) {
+    if (bestTopic && bestScore >= 2) {
       response = bestTopic.text;
-      if (bestTopic.quest) {
-        let qId = bestTopic.quest;
-        if (state.completedQuests.indexOf(qId) !== -1) {
-          response = "You've already completed that quest! Well done!";
-        } else if (!state.activeQuests[qId]) {
-          state.activeQuests[qId] = { started: Date.now(), readyNotified: false };
-          addMessage('npc', response);
-          addMessage('system', 'New quest: ' + GameData.quests[qId].name + ' - ' + GameData.quests[qId].desc);
-          playSound('quest');
-          updateHUD();
-          return;
-        }
-      }
       if (bestTopic.shopItem) {
         lastShopItem = bestTopic.shopItem;
         if (state.inventory.indexOf(lastShopItem) !== -1) {
           response = "You already have the " + GameData.items[lastShopItem].name + "!";
           lastShopItem = null;
         } else {
-          response += "\n\nSay 'yes' to buy or 'no' to pass!";
+          response += "\n\nWant to buy it? Say 'yes' or 'no'!";
         }
       }
+      addMessage('npc', response);
+      return;
     }
 
-    if (!response) {
-      response = getSmartFallback(npc, input, lower);
-    }
+    // 6. Context-aware smart fallback
+    response = getSmartFallback(npc, input, lower);
     addMessage('npc', response);
   }
 
   function getSmartFallback(npc, input, lower) {
-    // Try to give a contextual fallback rather than a generic one
-    let words = lower.split(/\s+/);
-
-    // Detect question patterns
-    if (lower.match(/\b(where|how do i|how can|what should|which way)\b/)) {
-      return "Hmm, I might not know exactly what you mean. Try asking about specific places like 'meadows', 'caves', 'repository', or 'cloud'. You can also ask about 'bugs', 'quests', or 'items'!";
+    // Active quest progress
+    for (let qId in state.activeQuests) {
+      let q = GameData.quests[qId];
+      if (q && q.giver === currentNPCId && !isQuestComplete(qId)) {
+        return "You're working on " + q.name + " — " + getQuestProgressText(qId) + ". Keep at it!";
+      }
     }
-    if (lower.match(/\b(who are you|what are you|tell me about yourself)\b/)) {
+
+    // Who are you
+    if (lower.match(/\b(who|name|you|yourself|about you)\b/)) {
       let nameKw = npc.topics.filter(function(t) { return t.kw.indexOf('who') !== -1 || t.kw.indexOf('name') !== -1; });
       if (nameKw.length > 0) return nameKw[0].text;
     }
-    if (lower.match(/\b(what can i do|what now|bored|nothing|idk|help me)\b/)) {
-      if (Object.keys(state.activeQuests).length > 0) {
-        return "You've got active quests! Check your quest log with Q. Or explore new areas - have you been everywhere yet?";
+
+    // Greeting
+    if (lower.match(/\b(hello|hi|hey|sup|yo|greetings|hiya|howdy)\b/)) {
+      let greetKw = npc.topics.filter(function(t) { return t.kw.indexOf('hello') !== -1 || t.kw.indexOf('hi') !== -1; });
+      if (greetKw.length > 0) return greetKw[0].text;
+    }
+
+    // Thanks
+    if (lower.match(/\b(thanks?|cheers|appreciate|ty)\b/)) {
+      let thankKw = npc.topics.filter(function(t) { return t.kw.indexOf('thank') !== -1 || t.kw.indexOf('thanks') !== -1; });
+      if (thankKw.length > 0) return thankKw[0].text;
+    }
+
+    // Goodbye
+    if (lower.match(/\b(bye|goodbye|later|see ya|cya|leaving|gotta go)\b/)) {
+      let byeKw = npc.topics.filter(function(t) { return t.kw.indexOf('bye') !== -1 || t.kw.indexOf('goodbye') !== -1; });
+      if (byeKw.length > 0) return byeKw[0].text;
+    }
+
+    // Help/what do I do
+    if (lower.match(/\b(help|what now|what do|bored|idk|stuck|lost|confused|how|where)\b/)) {
+      let activeCount = Object.keys(state.activeQuests).length;
+      if (activeCount > 0) {
+        return "You've got " + activeCount + " active quest" + (activeCount > 1 ? 's' : '') + "! Press Q to check progress. Or ask me about anything — bugs, areas, items.";
       }
-      return "Try asking me for a quest! Or explore the world - there are secrets, bug chains, fishing spots, and hidden zones to uncover. Say 'quest' to get started!";
+      let helpKw = npc.topics.filter(function(t) { return t.kw.indexOf('help') !== -1; });
+      if (helpKw.length > 0) return helpKw[0].text;
+      return "I can help with quests, give you info about the world, or point you in the right direction. What do you need?";
     }
-    if (lower.match(/\b(love|like|hate|feel|think|believe)\b/)) {
-      return "That's a thoughtful sentiment! I appreciate you sharing. But I'm better with practical questions - try asking about quests, bugs, items, or the different areas!";
-    }
-    if (lower.match(/\b(joke|funny|laugh|lol|haha)\b/)) {
+
+    // Jokes
+    if (lower.match(/\b(joke|funny|laugh|lol|haha|humor)\b/)) {
       let jokes = [
-        "Why do programmers prefer dark mode? Because light attracts bugs! Speaking of which, have you caught any lately?",
+        "Why do programmers prefer dark mode? Because light attracts bugs!",
         "What's a bug's favorite music? The Beatles, naturally!",
         "I told a bug it was being collected... it said 'that's a feature, not a bug!'",
-        "How many bugs does it take to change a lightbulb? None - they ARE the lightbulb in the Vibeverse!"
+        "A null walked into a bar. The bar crashed."
       ];
       return jokes[Math.floor(Math.random() * jokes.length)];
     }
-    if (words.length <= 2) {
-      return "Could you tell me more? I respond best to questions about bugs, quests, items, places, or the world. Try 'help' for a rundown!";
+
+    // Personality fallback — pick a random line from this NPC's pool
+    let lines = npcFallbackLines[currentNPCId];
+    if (lines && lines.length > 0) {
+      return lines[Math.floor(Math.random() * lines.length)];
     }
 
     return npc.defaultText;
