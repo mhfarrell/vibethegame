@@ -81,6 +81,8 @@ function buildGameState(gameState) {
   lines.push(`Total bugs caught: ${gameState.totalBugsCaught}`);
   lines.push(`Best combo chain: ${gameState.bestCombo}`);
   lines.push(`Fish caught: ${gameState.totalFishCaught}`);
+  if (gameState.timeOfDay) lines.push(`Time of day: ${gameState.timeOfDay}`);
+  if (gameState.weather) lines.push(`Weather: ${gameState.weather}`);
   if (gameState.petBug) lines.push(`Pet companion: ${gameState.petBug}`);
 
   if (Object.keys(gameState.activeQuests).length > 0) {

@@ -1806,7 +1806,9 @@ const Game = (() => {
       bestCombo: state.bestCombo || 0,
       totalFishCaught: state.totalFishCaught || 0,
       petBug: state.petBug || null,
-      bugLog: state.bugLog || {}
+      bugLog: state.bugLog || {},
+      timeOfDay: isNightTime() ? 'night' : 'day',
+      weather: pulseStorm.active ? 'pulse storm (bugs everywhere, catch fast!)' : 'calm'
     };
   }
 
