@@ -58,6 +58,7 @@ const Game = (() => {
   let saveTimer = 0;
   let gameTime = 0;
   let transitioning = false;
+  let portalCooldown = 0;
   let walkFrame = 0;
   let walkTimer = 0;
   let started = false;
@@ -1124,6 +1125,7 @@ const Game = (() => {
         }
       }
       if (comboState.flash > 0) comboState.flash = Math.max(0, comboState.flash - dt);
+      if (portalCooldown > 0) portalCooldown -= dt;
 
       // Screen shake update
       if (screenShake.timer > 0) {
@@ -1497,7 +1499,16 @@ const Game = (() => {
   function isAtFishingSpot() {
     let tx = Math.floor((state.player.x + TILE / 2) / TILE);
     let ty = Math.floor((state.player.y + PLAYER_OFFSET_Y) / TILE);
-    return !!(currentMap[ty] && currentMap[ty][tx] === GameData.T.FISHING_SPOT);
+    if (currentMap[ty] && currentMap[ty][tx] === GameData.T.FISHING_SPOT) return true;
+    // Fish from any walkable tile adjacent to a pond
+    let tile = currentMap[ty] ? currentMap[ty][tx] : undefined;
+    if (tile === undefined || !GameData.tileProps[tile] || !GameData.tileProps[tile].walkable) return false;
+    let offsets = [[-1,0],[1,0],[0,-1],[0,1]];
+    for (let i = 0; i < offsets.length; i++) {
+      let nx = tx + offsets[i][0], ny = ty + offsets[i][1];
+      if (currentMap[ny] && currentMap[ny][nx] === GameData.T.POND) return true;
+    }
+    return false;
   }
 
   // ====== FISHING SYSTEM ======
@@ -1514,7 +1525,7 @@ const Game = (() => {
         startFishing();
       }
     } else {
-      showNotification('Stand on a dock tile beside the pond to fish.');
+      showNotification('Stand next to the pond to fish.');
     }
   }
 
@@ -1601,13 +1612,24 @@ const Game = (() => {
       if (dist < minDist) { minDist = dist; nearestNPC = npcId; }
     }
     dom.interactPrompt.style.display = nearestNPC && !dialogueOpen ? 'block' : 'none';
-    // Update prompt text
+    // Update prompt text with quest context
     if (nearestNPC && !dialogueOpen) {
-      dom.interactPrompt.textContent = 'Press ENTER to talk';
+      let promptText = 'Press ENTER to talk';
+      Object.keys(GameData.quests).forEach(function(qId) {
+        let q = GameData.quests[qId];
+        if (q.giver === nearestNPC) {
+          if (state.activeQuests[qId] && isQuestComplete(qId)) {
+            promptText = 'Press ENTER - Quest ready!';
+          } else if (state.completedQuests.indexOf(qId) === -1 && !state.activeQuests[qId]) {
+            promptText = 'Press ENTER - New quest!';
+          }
+        }
+      });
+      dom.interactPrompt.textContent = promptText;
     } else if (nearestBug && !nearestNPC && !dialogueOpen) {
       dom.interactPrompt.textContent = 'Press SPACE to catch bug';
       dom.interactPrompt.style.display = 'block';
-    } else if (areaId === 'twilight_grove' && isAtFishingSpot()) {
+    } else if (isAtFishingSpot() && !dialogueOpen) {
       dom.interactPrompt.textContent = 'Press F to fish';
       dom.interactPrompt.style.display = 'block';
     }
@@ -1642,6 +1664,21 @@ const Game = (() => {
     else if (visits > 3) greeting = "Good to see you again, friend! What can I do for you?";
 
     addMessage('npc', greeting);
+
+    // Quest status hints
+    Object.keys(GameData.quests).forEach(function(qId) {
+      let q = GameData.quests[qId];
+      if (q.giver === npcId) {
+        if (state.activeQuests[qId] && isQuestComplete(qId)) {
+          addMessage('system', q.name + ' complete! Say anything to turn it in.');
+        } else if (state.activeQuests[qId]) {
+          addMessage('system', q.name + ': ' + getQuestProgressText(qId));
+        } else if (state.completedQuests.indexOf(qId) === -1) {
+          addMessage('system', 'Quest available - ask about "quest" or "task"');
+        }
+      }
+    });
+
     playSound('talk');
     setTimeout(function () { dom.dialogueInput.focus(); }, 100);
   }
@@ -1979,6 +2016,7 @@ const Game = (() => {
 
   // ====== PORTAL SYSTEM ======
   function checkPortals() {
+    if (portalCooldown > 0) return;
     let area = GameData.areas[areaId];
     let tx = Math.floor((state.player.x + TILE / 2) / TILE);
     let ty = Math.floor((state.player.y + PLAYER_OFFSET_Y) / TILE);
@@ -2020,6 +2058,7 @@ const Game = (() => {
       setTimeout(function () {
         dom.transitionOverlay.style.opacity = '0';
         transitioning = false;
+        portalCooldown = 0.5;
       }, 300);
     }, 300);
   }
@@ -2304,25 +2343,48 @@ const Game = (() => {
       case GameData.T.PORTAL: {
         ctx.fillStyle = pal.ground;
         ctx.fillRect(sx, sy, TILE, TILE);
-        let pt = gameTime * 3 + col + row;
-        // Swirling portal effect
+        let pt = gameTime * 2 + col * 0.5 + row * 0.5;
+        let pcx = sx + TILE / 2;
+        let pcy = sy + TILE / 2;
         ctx.save();
-        ctx.translate(sx + TILE / 2, sy + TILE / 2);
-        for (let pr = 0; pr < 3; pr++) {
-          let angle = pt + pr * 2.1;
-          let radius = 8 + Math.sin(pt * 2 + pr) * 3;
-          ctx.fillStyle = 'rgba(102, 187, 106, ' + (0.3 - pr * 0.08) + ')';
+        ctx.translate(pcx, pcy);
+        // Dark void center
+        let grad = ctx.createRadialGradient(0, 0, 0, 0, 0, 14);
+        grad.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
+        grad.addColorStop(0.5, 'rgba(15, 8, 35, 0.6)');
+        grad.addColorStop(1, 'rgba(102, 187, 106, 0)');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(0, 0, 14, 0, Math.PI * 2);
+        ctx.fill();
+        // Outer ring (rotating)
+        ctx.strokeStyle = 'rgba(102, 187, 106, 0.55)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(0, 0, 12 + Math.sin(pt * 1.5) * 1.5, pt, pt + Math.PI * 1.2);
+        ctx.stroke();
+        // Inner ring (counter-rotating)
+        ctx.strokeStyle = 'rgba(79, 213, 247, 0.45)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, 8 + Math.sin(pt * 2), -pt * 1.3, -pt * 1.3 + Math.PI);
+        ctx.stroke();
+        // Orbiting particles
+        for (let sp = 0; sp < 4; sp++) {
+          let sa = pt * 1.5 + sp * Math.PI / 2;
+          let sr = 10 + Math.sin(pt * 3 + sp) * 2;
+          ctx.fillStyle = sp % 2 === 0 ? 'rgba(123, 224, 127, 0.7)' : 'rgba(79, 213, 247, 0.6)';
           ctx.beginPath();
-          ctx.arc(Math.cos(angle) * radius * 0.3, Math.sin(angle) * radius * 0.3, radius, 0, Math.PI * 2);
+          ctx.arc(Math.cos(sa) * sr, Math.sin(sa) * sr, 1.5, 0, Math.PI * 2);
           ctx.fill();
         }
+        // Center pulse glow
+        let pp = 0.3 + Math.sin(pt * 2) * 0.15;
+        ctx.fillStyle = 'rgba(123, 224, 127, ' + pp + ')';
+        ctx.beginPath();
+        ctx.arc(0, 0, 4, 0, Math.PI * 2);
+        ctx.fill();
         ctx.restore();
-        // Arrow hint
-        ctx.fillStyle = 'rgba(102, 187, 106, 0.6)';
-        ctx.font = '16px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('\u2728', sx + TILE / 2, sy + TILE / 2 + 5);
-        ctx.textAlign = 'left';
         break;
       }
 
@@ -2813,22 +2875,32 @@ const Game = (() => {
       ctx.textAlign = 'left';
     }
 
-    // Quest indicator (!)
-    let hasQuest = false;
+    // Quest indicator: green ? for ready, yellow ! for new
+    let hasNewQuest = false;
+    let hasReadyQuest = false;
     Object.keys(GameData.quests).forEach(function (qId) {
       let q = GameData.quests[qId];
       if (q.giver === npcId) {
-        if (state.completedQuests.indexOf(qId) === -1 && !state.activeQuests[qId]) hasQuest = true;
-        if (state.activeQuests[qId] && isQuestComplete(qId)) hasQuest = true;
+        if (state.activeQuests[qId] && isQuestComplete(qId)) hasReadyQuest = true;
+        else if (state.completedQuests.indexOf(qId) === -1 && !state.activeQuests[qId]) hasNewQuest = true;
       }
     });
-    if (hasQuest && nearestNPC !== npcId) {
-      let excBob = Math.sin(gameTime * 4) * 3;
-      ctx.fillStyle = '#ffd54f';
-      ctx.font = 'bold 14px ' + CANVAS_FONT_STACK;
-      ctx.textAlign = 'center';
-      ctx.fillText('!', sx + 16, sy - 4 + excBob + bob);
-      ctx.textAlign = 'left';
+    if (nearestNPC !== npcId) {
+      if (hasReadyQuest) {
+        let excBob = Math.sin(gameTime * 4) * 3;
+        ctx.fillStyle = '#66bb6a';
+        ctx.font = 'bold 16px ' + CANVAS_FONT_STACK;
+        ctx.textAlign = 'center';
+        ctx.fillText('?', sx + 16, sy - 4 + excBob + bob);
+        ctx.textAlign = 'left';
+      } else if (hasNewQuest) {
+        let excBob = Math.sin(gameTime * 4) * 3;
+        ctx.fillStyle = '#ffd54f';
+        ctx.font = 'bold 14px ' + CANVAS_FONT_STACK;
+        ctx.textAlign = 'center';
+        ctx.fillText('!', sx + 16, sy - 4 + excBob + bob);
+        ctx.textAlign = 'left';
+      }
     }
   }
 

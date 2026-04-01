@@ -105,9 +105,9 @@ export const GameData = (() => {
         { x: 3, y: 2, dest: 'repository', destX: 160, destY: 512 },
         { x: 4, y: 2, dest: 'repository', destX: 160, destY: 512 },
         { x: 5, y: 2, dest: 'repository', destX: 160, destY: 512 },
-        { x: 14, y: 10, dest: 'neon_garden', destX: 96, destY: 544 },
-        { x: 15, y: 10, dest: 'neon_garden', destX: 96, destY: 544 },
-        { x: 16, y: 10, dest: 'neon_garden', destX: 96, destY: 544 },
+        { x: 14, y: 10, dest: 'neon_garden', destX: 512, destY: 320 },
+        { x: 15, y: 10, dest: 'neon_garden', destX: 512, destY: 320 },
+        { x: 16, y: 10, dest: 'neon_garden', destX: 512, destY: 320 },
         { x: 10, y: 18, dest: 'twilight_grove', destX: 320, destY: 480 },
         { x: 11, y: 18, dest: 'twilight_grove', destX: 320, destY: 480 },
         { x: 12, y: 18, dest: 'twilight_grove', destX: 320, destY: 480 }
