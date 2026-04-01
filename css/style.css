@@ -861,23 +861,85 @@ input {
   line-height: 2.1;
 }
 
-#start-screen .footer-links {
+/* ---- SITE FOOTER ---- */
+.site-footer {
   position: absolute;
-  bottom: 18px;
+  bottom: 0;
+  left: 0;
+  right: 0;
   z-index: 1;
-  display: flex;
-  gap: 20px;
+  padding: 18px 24px 16px;
+  border-top: 1px solid var(--border-light);
+  background: linear-gradient(transparent, rgba(4, 9, 20, 0.6));
 }
 
-#start-screen .footer-links a {
-  font-family: var(--font-pixel);
-  font-size: 8px;
+.footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.footer-author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.footer-name {
+  font-weight: 600;
+  color: var(--text-soft);
+}
+
+.footer-title {
+  opacity: 0.6;
+}
+
+.footer-links {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.footer-link {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   color: var(--text-dim);
   text-decoration: none;
-  transition: color 0.2s;
+  transition: color var(--transition-fast);
 }
 
-#start-screen .footer-links a:hover {
+.footer-link:hover {
+  color: var(--accent);
+}
+
+.footer-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.footer-link-label {
+  font-size: 11px;
+}
+
+.footer-copyright {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.footer-privacy-link {
+  color: var(--text-dim);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.footer-privacy-link:hover {
   color: var(--accent);
 }
 
@@ -1102,7 +1164,9 @@ input {
   .start-art-frame { width: min(100%, calc(100vw - 56px)); }
   .start-badges { gap: 8px; }
   .start-badge { font-size: 11px; }
-  #start-screen .footer-links { position: static; margin-top: 18px; }
+  .site-footer { position: static; padding: 14px 16px 12px; }
+  .footer-inner { gap: 12px; font-size: 10px; }
+  .footer-icon { width: 14px; height: 14px; }
   #cookie-banner { width: min(100%, calc(100vw - 20px)); bottom: 10px; }
   .cookie-btns { flex-direction: column; }
   #mobile-controls { display: block; }
