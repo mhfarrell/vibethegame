@@ -80,9 +80,11 @@ html, body {
 }
 
 .hud-item {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: rgba(15, 15, 35, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(51, 51, 102, 0.6);
+  border-radius: 8px;
   padding: 6px 14px;
   font-size: 10px;
   font-family: var(--font-pixel);
@@ -223,14 +225,17 @@ html, body {
   left: 50%;
   transform: translateX(-50%);
   width: min(700px, calc(100vw - 40px));
-  background: var(--panel);
-  border: 2px solid var(--accent2);
-  border-radius: 12px;
+  background: rgba(15, 15, 35, 0.88);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgba(79, 195, 247, 0.25);
+  border-radius: 14px;
   padding: 0;
   z-index: 20;
   display: none;
   animation: slideUp 0.3s ease-out;
   overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 @keyframes slideUp {
@@ -376,13 +381,16 @@ html, body {
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
   width: min(500px, calc(100vw - 40px));
-  background: var(--panel);
-  border: 2px solid var(--gold);
-  border-radius: 12px;
+  background: rgba(15, 15, 35, 0.85);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgba(255, 213, 79, 0.25);
+  border-radius: 16px;
   padding: 24px;
   z-index: 25;
   display: none;
   animation: fadeIn 0.2s;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 @keyframes fadeIn {
@@ -460,9 +468,11 @@ html, body {
   top: 70px;
   left: 50%;
   transform: translateX(-50%);
-  background: var(--panel);
-  border: 2px solid var(--gold);
-  border-radius: 8px;
+  background: rgba(15, 15, 35, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 213, 79, 0.3);
+  border-radius: 10px;
   padding: 10px 24px;
   font-family: var(--font-pixel);
   font-size: 10px;
@@ -472,6 +482,7 @@ html, body {
   animation: notifSlide 0.3s ease-out;
   pointer-events: none;
   text-align: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
 }
 
 @keyframes notifSlide {
@@ -642,13 +653,16 @@ html, body {
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
   width: min(400px, calc(100vw - 40px));
-  background: var(--panel);
-  border: 2px solid var(--accent2);
-  border-radius: 12px;
+  background: rgba(15, 15, 35, 0.88);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(79, 195, 247, 0.25);
+  border-radius: 16px;
   padding: 30px;
   z-index: 40;
   display: none;
   text-align: center;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 #menu-panel h2 {
@@ -857,13 +871,16 @@ html, body {
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
   width: min(450px, calc(100vw - 40px));
-  background: var(--panel);
-  border: 2px solid var(--accent);
-  border-radius: 12px;
+  background: rgba(15, 15, 35, 0.85);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgba(102, 187, 106, 0.25);
+  border-radius: 16px;
   padding: 24px;
   z-index: 25;
   display: none;
   animation: fadeIn 0.2s;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 #quests-panel h2 {
@@ -919,16 +936,19 @@ html, body {
   position: absolute;
   top: 50%; left: 50%;
   transform: translate(-50%, -50%);
-  width: min(550px, calc(100vw - 40px));
+  width: min(580px, calc(100vw - 40px));
   max-height: 80vh;
   overflow-y: auto;
-  background: var(--panel);
-  border: 2px solid var(--hot);
-  border-radius: 12px;
+  background: rgba(15, 15, 35, 0.85);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgba(255, 159, 104, 0.25);
+  border-radius: 16px;
   padding: 24px;
   z-index: 25;
   display: none;
   animation: fadeIn 0.2s;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 #bestiary-panel h2 {
@@ -937,6 +957,7 @@ html, body {
   color: var(--hot);
   margin-bottom: 8px;
   text-align: center;
+  text-shadow: 0 0 20px rgba(255, 159, 104, 0.3);
 }
 
 .bestiary-progress {
@@ -945,50 +966,55 @@ html, body {
   font-size: 9px;
   color: var(--text-dim);
   margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .bestiary-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 10px;
   margin-bottom: 12px;
 }
 
 .bestiary-entry {
-  background: rgba(255, 159, 104, 0.05);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 10px 12px;
+  background: rgba(255, 159, 104, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 12px 14px;
   display: flex;
   align-items: center;
-  gap: 10px;
-  transition: border-color 0.2s;
+  gap: 12px;
+  transition: border-color 0.2s, background 0.2s, transform 0.15s;
 }
 
 .bestiary-entry:not(.undiscovered):hover {
   border-color: var(--hot);
+  background: rgba(255, 159, 104, 0.08);
+  transform: translateY(-1px);
 }
 
 .bestiary-entry.undiscovered {
-  opacity: 0.35;
+  opacity: 0.3;
 }
 
 .bestiary-bug-icon {
-  width: 36px; height: 36px;
-  border-radius: 6px;
+  width: 40px; height: 40px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .bestiary-info { flex: 1; min-width: 0; }
 
 .bestiary-name {
   font-family: var(--font-pixel);
-  font-size: 8px;
+  font-size: 9px;
   color: var(--gold);
-  margin-bottom: 3px;
+  margin-bottom: 5px;
 }
 
 .bestiary-meta {
@@ -996,13 +1022,35 @@ html, body {
   font-size: 10px;
   color: var(--text-dim);
   line-height: 1.4;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.bestiary-stat {
+  color: var(--text-dim);
+  font-size: 10px;
 }
 
 .bestiary-count {
   font-family: var(--font-pixel);
-  font-size: 9px;
+  font-size: 10px;
   color: var(--accent2);
   flex-shrink: 0;
+  background: rgba(79, 195, 247, 0.1);
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+
+.bestiary-empty {
+  text-align: center;
+  color: var(--text-dim);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 12px;
+  padding: 30px 20px;
+  line-height: 1.8;
+  grid-column: 1 / -1;
 }
 
 .bestiary-close {
@@ -1010,6 +1058,49 @@ html, body {
   margin-top: 12px;
   font-size: 8px;
   color: var(--text-dim);
+}
+
+/* Rarity badges */
+.rarity-badge {
+  display: inline-block;
+  font-family: var(--font-pixel);
+  font-size: 7px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.rarity-badge.rarity-common {
+  color: #aaa;
+  background: rgba(170, 170, 170, 0.1);
+  border: 1px solid rgba(170, 170, 170, 0.2);
+}
+.rarity-badge.rarity-uncommon {
+  color: #66bb6a;
+  background: rgba(102, 187, 106, 0.1);
+  border: 1px solid rgba(102, 187, 106, 0.2);
+}
+.rarity-badge.rarity-rare {
+  color: #4fc3f7;
+  background: rgba(79, 195, 247, 0.1);
+  border: 1px solid rgba(79, 195, 247, 0.2);
+}
+.rarity-badge.rarity-epic {
+  color: #ce93d8;
+  background: rgba(206, 147, 216, 0.1);
+  border: 1px solid rgba(206, 147, 216, 0.2);
+}
+.rarity-badge.rarity-legendary {
+  color: #ffd54f;
+  background: rgba(255, 213, 79, 0.15);
+  border: 1px solid rgba(255, 213, 79, 0.25);
+  animation: legendaryGlow 2s infinite;
+}
+
+@keyframes legendaryGlow {
+  0%, 100% { box-shadow: 0 0 4px rgba(255, 213, 79, 0.2); }
+  50% { box-shadow: 0 0 10px rgba(255, 213, 79, 0.4); }
 }
 
 /* ---- SCANNER ---- */
@@ -1022,13 +1113,16 @@ html, body {
   overflow-y: auto;
   background:
     linear-gradient(180deg, rgba(41, 215, 255, 0.05), rgba(255, 122, 89, 0.03)),
-    var(--panel);
-  border: 2px solid var(--accent2);
+    rgba(15, 15, 35, 0.85);
+  backdrop-filter: blur(16px) saturate(1.4);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  border: 1px solid rgba(79, 195, 247, 0.25);
   border-radius: 16px;
   padding: 24px;
   z-index: 26;
   display: none;
   animation: fadeIn 0.2s;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
 #scanner-panel h2 {

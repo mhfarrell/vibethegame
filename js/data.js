@@ -366,12 +366,12 @@ var GameData = (function () {
         '################################'
       ),
       portals: [
-        { x: 0, y: 17, dest: 'spawn_village', destX: 480, destY: 320 },
-        { x: 1, y: 17, dest: 'spawn_village', destX: 480, destY: 320 },
-        { x: 2, y: 17, dest: 'spawn_village', destX: 480, destY: 320 },
-        { x: 0, y: 18, dest: 'spawn_village', destX: 480, destY: 320 },
-        { x: 1, y: 18, dest: 'spawn_village', destX: 480, destY: 320 },
-        { x: 2, y: 18, dest: 'spawn_village', destX: 480, destY: 320 }
+        { x: 1, y: 17, dest: 'spawn_village', destX: 480, destY: 384 },
+        { x: 2, y: 17, dest: 'spawn_village', destX: 480, destY: 384 },
+        { x: 3, y: 17, dest: 'spawn_village', destX: 480, destY: 384 },
+        { x: 1, y: 18, dest: 'spawn_village', destX: 480, destY: 384 },
+        { x: 2, y: 18, dest: 'spawn_village', destX: 480, destY: 384 },
+        { x: 3, y: 18, dest: 'spawn_village', destX: 480, destY: 384 }
       ],
       npcs: ['remix_ren']
     }
@@ -800,7 +800,7 @@ var GameData = (function () {
       desc: 'A loyal companion that glows at dusk',
       color: '#ff8a65',
       glowColor: '#ffcc80',
-      special: 'Double bug value when following'
+      special: '+1 bug per catch while following'
     },
     moonfire: {
       name: 'Moonfire Bug',

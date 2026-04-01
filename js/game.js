@@ -635,6 +635,18 @@ var Game = (function () {
     canvas.style.height = Math.floor(canvasH * scale) + 'px';
   }
 
+  // ====== PANEL MANAGEMENT ======
+  function closeGamePanels(except) {
+    if (inventoryOpen && except !== 'inventory') toggleInventory();
+    if (questsOpen && except !== 'quests') toggleQuests();
+    if (bestiaryOpen && except !== 'bestiary') toggleBestiary();
+    if (scannerOpen && except !== 'scanner') toggleScanner();
+  }
+
+  function anyPanelOpen() {
+    return dialogueOpen || menuOpen || inventoryOpen || questsOpen || bestiaryOpen || scannerOpen;
+  }
+
   // ====== INPUT ======
   function onKeyDown(e) {
     if (dialogueOpen && e.target === dom.dialogueInput) return;
@@ -644,14 +656,12 @@ var Game = (function () {
     if (key === 'enter') {
       e.preventDefault();
       if (!started) { startGame(); return; }
-      if (menuOpen || dialogueOpen || scannerOpen) return;
-      if (inventoryOpen) { toggleInventory(); return; }
-      if (questsOpen) { toggleQuests(); return; }
+      if (anyPanelOpen()) return;
       if (nearestNPC) openDialogue(nearestNPC);
     }
     if (key === ' ') {
       e.preventDefault();
-      if (!started || dialogueOpen || menuOpen || inventoryOpen || questsOpen || bestiaryOpen || scannerOpen) return;
+      if (!started || anyPanelOpen()) return;
       attemptCatchBug();
     }
     if (key === 'escape') {
@@ -663,43 +673,40 @@ var Game = (function () {
       if (scannerOpen) { toggleScanner(); return; }
       if (started) toggleMenu();
     }
-    if (key === 'i' && started && !dialogueOpen && !menuOpen && !scannerOpen) {
+    if (key === 'i' && started && !dialogueOpen && !menuOpen) {
       e.preventDefault();
-      if (questsOpen) toggleQuests();
+      closeGamePanels('inventory');
       toggleInventory();
     }
-    if (key === 'q' && started && !dialogueOpen && !menuOpen && !scannerOpen) {
+    if (key === 'q' && started && !dialogueOpen && !menuOpen) {
       e.preventDefault();
-      if (inventoryOpen) toggleInventory();
+      closeGamePanels('quests');
       toggleQuests();
     }
-    if (key === 'f' && started && !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen && !scannerOpen) {
+    if (key === 'f' && started && !anyPanelOpen()) {
       e.preventDefault();
       attemptFishing();
     }
-    if ((key === 'shift' || key === 'shiftleft' || key === 'shiftright') && started &&
-        !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen && !scannerOpen) {
+    if ((key === 'shift' || key === 'shiftleft' || key === 'shiftright') && started && !anyPanelOpen()) {
       e.preventDefault();
       attemptDash();
     }
-    if (key === 'b' && started && !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen && !scannerOpen) {
+    if (key === 'b' && started && !dialogueOpen && !menuOpen) {
       e.preventDefault();
-      if (bestiaryOpen) { toggleBestiary(); return; }
+      closeGamePanels('bestiary');
       toggleBestiary();
     }
-    if (key === 'p' && started && !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen && !scannerOpen) {
+    if (key === 'p' && started && !anyPanelOpen()) {
       e.preventDefault();
       togglePetMenu();
     }
-    if (key === 'l' && started && !dialogueOpen && !menuOpen && !inventoryOpen && !questsOpen && !bestiaryOpen && !scannerOpen) {
+    if (key === 'l' && started && !anyPanelOpen()) {
       e.preventDefault();
       deploySignalLure();
     }
     if (key === 'm' && started && !dialogueOpen && !menuOpen) {
       e.preventDefault();
-      if (inventoryOpen) toggleInventory();
-      if (questsOpen) toggleQuests();
-      if (bestiaryOpen) toggleBestiary();
+      closeGamePanels('scanner');
       toggleScanner();
     }
   }
@@ -1029,7 +1036,7 @@ var Game = (function () {
       if (dashState.cooldown > 0) dashState.cooldown = Math.max(0, dashState.cooldown - dt);
       if (comboState.timer > 0) {
         comboState.timer = Math.max(0, comboState.timer - dt);
-        if (comboState.timer === 0 && comboState.count > 0) {
+        if (comboState.timer <= 0 && comboState.count > 0) {
           if (vibeMode.active) { vibeMode.active = false; }
           comboState.count = 0;
           comboState.flash = 0;
@@ -1416,7 +1423,7 @@ var Game = (function () {
   // ====== FISHING SYSTEM ======
   function attemptFishing() {
     if (state.inventory.indexOf('fishing_rod') === -1) {
-      showNotification('You need a Fishing Rod! Visit Finley in the Twilight Grove.');
+      showNotification('You need a Fishing Rod! Buy one from Vivian in Spawn Village.');
       return;
     }
 
@@ -3043,8 +3050,8 @@ var Game = (function () {
     
     for (var i = 0; i < weather.particles.length; i++) {
       var p = weather.particles[i];
-      p.y += p.speed;
-      p.x += p.drift;
+      p.y += p.speed * dt * 60;
+      p.x += p.drift * dt * 60;
     }
     weather.particles = weather.particles.filter(function(p) { return p.y < canvasH + 10; });
   }
@@ -3087,6 +3094,12 @@ var Game = (function () {
     var allBugs = Object.keys(GameData.bugTypes);
     var discovered = state.discoveredBugTypes || [];
     progress.textContent = discovered.length + ' / ' + allBugs.length + ' species discovered';
+
+    if (discovered.length === 0) {
+      grid.innerHTML = '<div class="bestiary-empty">No species discovered yet. Catch bugs in the tall grass with SPACE to fill your bestiary!</div>';
+      return;
+    }
+
     allBugs.forEach(function (bugId) {
       var def = GameData.bugTypes[bugId];
       var found = discovered.indexOf(bugId) !== -1;
@@ -3094,6 +3107,7 @@ var Game = (function () {
       var div = document.createElement('div');
       div.className = 'bestiary-entry' + (found ? '' : ' undiscovered');
       var colorBg = found ? def.glow + '33' : '#222';
+      var rarityClass = found ? ' rarity-' + def.rarity : '';
       div.innerHTML =
         '<div class="bestiary-bug-icon" style="background:' + colorBg + '">' +
           '<span style="font-size:18px;color:' + (found ? def.color : '#333') + '">' + (found ? '\uD83D\uDC1B' : '?') + '</span>' +
@@ -3101,7 +3115,7 @@ var Game = (function () {
         '<div class="bestiary-info">' +
           '<div class="bestiary-name">' + (found ? def.name : '???') + '</div>' +
           '<div class="bestiary-meta">' +
-            (found ? '<span class="rarity-' + def.rarity + '">' + def.rarity + '</span> \u00B7 ' + def.value + ' bug' + (def.value > 1 ? 's' : '') + ' \u00B7 spd ' + def.speed : 'Not yet discovered') +
+            (found ? '<span class="rarity-badge' + rarityClass + '">' + def.rarity + '</span> <span class="bestiary-stat">' + def.value + ' bug' + (def.value > 1 ? 's' : '') + '</span> <span class="bestiary-stat">spd ' + def.speed + '</span>' : 'Not yet discovered') +
           '</div>' +
         '</div>' +
         (found ? '<div class="bestiary-count">x' + count + '</div>' : '');
