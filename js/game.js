@@ -1808,7 +1808,16 @@ const Game = (() => {
       petBug: state.petBug || null,
       bugLog: state.bugLog || {},
       timeOfDay: isNightTime() ? 'night' : 'day',
-      weather: pulseStorm.active ? 'pulse storm (bugs everywhere, catch fast!)' : 'calm'
+      weather: pulseStorm.active ? 'pulse storm (bugs everywhere, catch fast!)' : 'calm',
+      bugsNearby: bugs.length,
+      currentCombo: comboState.count,
+      comboActive: comboState.timer > 0,
+      areaName: GameData.areas[areaId] ? GameData.areas[areaId].name : areaId,
+      areaBugDensity: GameData.areas[areaId] ? GameData.areas[areaId].bugDensity : 0,
+      hasDash: canDash(),
+      hasLure: state.inventory.indexOf('signal_lure') !== -1,
+      lureActive: signalLure.active || false,
+      playTime: Math.floor(gameTime / 60)
     };
   }
 
