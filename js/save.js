@@ -1,11 +1,44 @@
 /**
- * Vibe The Game - Save System
- * Uses cookies + localStorage for persistent game progress
+ * Vibe The Game - Save System v2
+ * Uses IndexedDB for robust persistent storage with cookie fallback
  */
 const SaveSystem = {
+  DB_NAME: 'VibeTheGame',
+  DB_VERSION: 1,
+  STORE_NAME: 'gameSave',
   COOKIE_NAME: 'vibeGameSave',
   CONSENT_COOKIE: 'vibeCookieConsent',
   COOKIE_DAYS: 365,
+  db: null,
+
+  async init() {
+    return new Promise((resolve, reject) => {
+      if (!window.indexedDB) {
+        console.warn('IndexedDB not supported, falling back to cookies');
+        resolve(false);
+        return;
+      }
+
+      const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+
+      request.onerror = () => {
+        console.error('IndexedDB error:', request.error);
+        resolve(false);
+      };
+
+      request.onsuccess = () => {
+        this.db = request.result;
+        resolve(true);
+      };
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+          db.createObjectStore(this.STORE_NAME, { keyPath: 'id' });
+        }
+      };
+    });
+  },
 
   setCookie(name, value, days) {
     const expires = new Date(Date.now() + days * 864e5).toUTCString();
@@ -30,14 +63,63 @@ const SaveSystem = {
     this.setCookie(this.CONSENT_COOKIE, 'true', this.COOKIE_DAYS);
   },
 
-  save(state) {
-    var data = JSON.stringify(state);
+  async save(state) {
+    const data = JSON.stringify(state);
+    
+    // Try IndexedDB first
+    if (this.db) {
+      try {
+        const tx = this.db.transaction(this.STORE_NAME, 'readwrite');
+        const store = tx.objectStore(this.STORE_NAME);
+        store.put({ id: 'gameState', data: data, timestamp: Date.now() });
+        return new Promise((resolve) => {
+          tx.oncomplete = () => resolve(true);
+          tx.onerror = () => resolve(false);
+        });
+      } catch (e) {
+        console.warn('IndexedDB save failed:', e);
+      }
+    }
+    
+    // Fallback to cookies + localStorage
     this.setCookie(this.COOKIE_NAME, data, this.COOKIE_DAYS);
     try { localStorage.setItem(this.COOKIE_NAME, data); } catch (e) { }
+    return true;
   },
 
-  load() {
-    var data = this.getCookie(this.COOKIE_NAME);
+  async load() {
+    // Try IndexedDB first
+    if (this.db) {
+      try {
+        const tx = this.db.transaction(this.STORE_NAME, 'readonly');
+        const store = tx.objectStore(this.STORE_NAME);
+        const request = store.get('gameState');
+        
+        return new Promise((resolve) => {
+          request.onsuccess = () => {
+            if (request.result) {
+              try {
+                const parsed = JSON.parse(request.result.data);
+                resolve(this.normalizeState(parsed));
+              } catch (e) {
+                resolve(this.loadFallback());
+              }
+            } else {
+              resolve(this.loadFallback());
+            }
+          };
+          request.onerror = () => resolve(this.loadFallback());
+        });
+      } catch (e) {
+        console.warn('IndexedDB load failed:', e);
+      }
+    }
+    
+    return this.loadFallback();
+  },
+
+  loadFallback() {
+    let data = this.getCookie(this.COOKIE_NAME);
     if (!data) {
       try { data = localStorage.getItem(this.COOKIE_NAME); } catch (e) { }
     }
@@ -45,13 +127,25 @@ const SaveSystem = {
     try { return this.normalizeState(JSON.parse(data)); } catch (e) { return null; }
   },
 
-  clear() {
+  async clear() {
+    // Clear IndexedDB
+    if (this.db) {
+      try {
+        const tx = this.db.transaction(this.STORE_NAME, 'readwrite');
+        const store = tx.objectStore(this.STORE_NAME);
+        store.delete('gameState');
+      } catch (e) {
+        console.warn('IndexedDB clear failed:', e);
+      }
+    }
+    
+    // Clear cookies and localStorage
     this.deleteCookie(this.COOKIE_NAME);
     try { localStorage.removeItem(this.COOKIE_NAME); } catch (e) { }
   },
 
   normalizeState(state) {
-    var defaults = this.getDefaultState();
+    const defaults = this.getDefaultState();
     if (!state || typeof state !== 'object') return defaults;
     return {
       player: Object.assign({}, defaults.player, state.player || {}),
@@ -93,7 +187,6 @@ const SaveSystem = {
       achievements: [],
       playTime: 0,
       version: 4,
-      // New features
       timeOfDay: 0,
       petBug: null,
       fishCaught: [],
@@ -107,3 +200,8 @@ const SaveSystem = {
     };
   }
 };
+
+// Initialize on load
+if (typeof window !== 'undefined') {
+  SaveSystem.init();
+}

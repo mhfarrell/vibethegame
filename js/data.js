@@ -1,19 +1,18 @@
 /**
  * Vibe The Game - Game Data (Enhanced Edition)
- * All maps, NPCs, items, quests, and tile definitions
- * Added: Day/Night cycle, Pet system, Fishing, New areas
+ * Refactored with ES6+
  */
-var GameData = (function () {
+const GameData = (() => {
 
   // Tile type constants
-  var T = {
+  const T = {
     GROUND: 0, WALL: 1, WATER: 2, PORTAL: 3, TREE: 4,
     TALL_GRASS: 5, PATH: 6, FLOWERS: 7, BOOKSHELF: 8,
     CRYSTAL: 9, CLOUD: 10, VOID: 11, DARK: 12, HOUSE: 13,
     LAMP_POST: 14, POND: 15, FISHING_SPOT: 16, FLOWER_CLUSTER: 17, ROCK: 18
   };
 
-  var tileProps = {};
+  const tileProps = {};
   tileProps[T.GROUND]         = { walkable: true };
   tileProps[T.WALL]           = { walkable: false };
   tileProps[T.WATER]          = { walkable: false };
@@ -35,7 +34,7 @@ var GameData = (function () {
   tileProps[T.ROCK]           = { walkable: false };
 
   // Parse a map string into 2D tile array
-  var charToTile = {
+  const charToTile = {
     '.': T.GROUND, '#': T.WALL, '~': T.WATER, 'P': T.PORTAL,
     'T': T.TREE, '*': T.TALL_GRASS, '=': T.PATH, 'F': T.FLOWERS,
     'B': T.BOOKSHELF, 'C': T.CRYSTAL, 'O': T.CLOUD, 'X': T.VOID,
@@ -44,15 +43,15 @@ var GameData = (function () {
   };
 
   function parseMap(str) {
-    var rows = str.trim().split('\n');
-    var width = 0;
-    for (var r = 0; r < rows.length; r++) {
+    const rows = str.trim().split('\n');
+    let width = 0;
+    for (let r = 0; r < rows.length; r++) {
       if (rows[r].length > width) width = rows[r].length;
     }
-    return rows.map(function (row) {
-      var tiles = [];
-      for (var i = 0; i < width; i++) {
-        var ch = i < row.length ? row[i] : '#';
+    return rows.map((row) => {
+      const tiles = [];
+      for (let i = 0; i < width; i++) {
+        const ch = i < row.length ? row[i] : '#';
         tiles.push(charToTile[ch] !== undefined ? charToTile[ch] : T.GROUND);
       }
       return tiles;
@@ -61,7 +60,7 @@ var GameData = (function () {
 
   // ====== AREA MAPS ======
 
-  var areas = {
+  const areas = {
 
     // ---- SPAWN VILLAGE ----
     spawn_village: {
@@ -379,7 +378,7 @@ var GameData = (function () {
 
   // ====== NPC DEFINITIONS ======
 
-  var npcDefs = {
+  let npcDefs = {
     prof_semicolon: {
       name: 'Professor Semicolon',
       x: 14, y: 8,
@@ -765,7 +764,7 @@ var GameData = (function () {
 
   // ====== ITEMS ======
 
-  var items = {
+  let items = {
     bug_net:       { name: 'Bug Net',       desc: 'Doubles bug catch rate',           price: 20,  icon: 'net' },
     lantern:       { name: 'Lantern',       desc: 'Illuminates dark areas',           price: 35,  icon: 'lantern' },
     speed_boots:   { name: 'Speed Boots',  desc: 'Move 50% faster',                   price: 50,  icon: 'boots' },
@@ -781,7 +780,7 @@ var GameData = (function () {
 
   // ====== BUG TYPES ======
 
-  var bugTypes = {
+  let bugTypes = {
     meadow_skipper: { name: 'Meadow Skipper', rarity: 'common', value: 1, color: '#ffd54f', glow: '#fff3b0', wing: '#fff9dc', speed: 12, sprite: 0 },
     byte_beetle:    { name: 'Byte Beetle',    rarity: 'uncommon', value: 2, color: '#ffb74d', glow: '#ffe0b2', wing: '#fff3e0', speed: 16, sprite: 1 },
     null_mite:      { name: 'Null Mite',      rarity: 'rare', value: 3, color: '#b39ddb', glow: '#ede7f6', wing: '#d1c4e9', speed: 14, sprite: 2 },
@@ -794,7 +793,7 @@ var GameData = (function () {
 
   // ====== PET BUGS ======
 
-  var petBugs = {
+  let petBugs = {
     duskwing: {
       name: 'Duskwing',
       desc: 'A loyal companion that glows at dusk',
@@ -820,7 +819,7 @@ var GameData = (function () {
 
   // ====== FISH TYPES ======
 
-  var fishTypes = {
+  let fishTypes = {
     glow_minnow:    { name: 'Glow Minnow',    rarity: 'common',  value: 5,  color: '#4fc3f7', desc: 'A small glowing fish' },
     silver_dart:    { name: 'Silver Dartfish',rarity: 'common',  value: 8,  color: '#cfd8dc', desc: 'Fast and slippery' },
     golden_glimmer: { name: 'Golden Glimmer', rarity: 'rare',    value: 15, color: '#ffd54f', desc: 'Shimmers with sunset light' },
@@ -830,7 +829,7 @@ var GameData = (function () {
 
   // ====== QUESTS ======
 
-  var quests = {
+  let quests = {
     first_catch: {
       name: 'First Catch',
       desc: 'Collect 5 bugs',
@@ -919,7 +918,7 @@ var GameData = (function () {
 
   // ====== ACHIEVEMENTS ======
 
-  var achievementDefs = [
+  let achievementDefs = [
     { id: 'first_bug',          name: 'First Bug',           desc: 'Collect your first bug' },
     { id: 'conversationalist',  name: 'Conversationalist',   desc: 'Talk to all NPCs' },
     { id: 'explorer',           name: 'Explorer',            desc: 'Visit all areas' },
